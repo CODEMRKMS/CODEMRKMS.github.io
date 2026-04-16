@@ -1,0 +1,279 @@
+/* ============================================
+   SCENE 6 — CONTACT (Transmission Booth)
+   ============================================ */
+
+#contact {
+  background: var(--void);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Wireframe Globe Canvas */
+#globe-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  opacity: 0.15;
+}
+
+.contact-content {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap-xl);
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+/* Heading */
+.contact-heading {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  font-weight: 700;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--ghost);
+  margin-bottom: var(--gap-lg);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.heading-cursor {
+  display: inline-block;
+  width: 3px;
+  height: 1em;
+  background: var(--cyan);
+  animation: cursorBlink 0.8s step-end infinite;
+  box-shadow: 0 0 8px var(--cyan-glow);
+}
+
+/* Form */
+.contact-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.form-group {
+  position: relative;
+}
+
+.form-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ghost-muted);
+  margin-bottom: 8px;
+  display: block;
+}
+
+.form-input,
+.form-textarea {
+  width: 100%;
+  padding: 14px 18px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--ghost);
+  background: var(--void-lighter);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  cursor: none;
+}
+
+.form-textarea {
+  height: 120px;
+  resize: vertical;
+}
+
+.form-input:focus,
+.form-textarea:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 20px var(--cyan-dim), inset 0 0 20px rgba(0, 245, 255, 0.03);
+}
+
+/* Signal wave animation on focus */
+.form-input:focus,
+.form-textarea:focus {
+  animation: signalWave 2s ease-in-out infinite;
+}
+
+@keyframes signalWave {
+  0%, 100% { box-shadow: 0 0 15px var(--cyan-dim), inset 0 0 15px rgba(0, 245, 255, 0.03); }
+  50% { box-shadow: 0 0 25px var(--cyan-dim), inset 0 0 25px rgba(0, 245, 255, 0.05); }
+}
+
+.form-input::placeholder,
+.form-textarea::placeholder {
+  color: var(--ghost-muted);
+  opacity: 0.4;
+}
+
+/* Submit button */
+.form-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 36px;
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--ghost);
+  background: linear-gradient(135deg, var(--indigo), #5a52e0);
+  border: none;
+  border-radius: 10px;
+  cursor: none;
+  transition: all var(--transition-med);
+  align-self: flex-start;
+  position: relative;
+  overflow: hidden;
+}
+
+.form-submit:hover {
+  box-shadow: 0 0 30px var(--indigo-dim), 0 0 60px rgba(108, 99, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.form-submit::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.form-submit:hover::after {
+  left: 100%;
+}
+
+/* --- Contact Links / Holographic Chips --- */
+.contact-links {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  justify-content: center;
+}
+
+.holo-chip {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 24px;
+  background: var(--void-light);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  text-decoration: none;
+  cursor: none;
+  position: relative;
+  overflow: hidden;
+  transition: all var(--transition-med);
+  perspective: 600px;
+}
+
+.holo-chip:hover {
+  border-color: var(--cyan);
+  box-shadow: 0 0 25px var(--cyan-dim);
+  transform: translateX(6px);
+}
+
+.chip-icon {
+  font-size: 1.5rem;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--void-lighter);
+  border: 1px solid var(--indigo-dim);
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.holo-chip:hover .chip-icon {
+  border-color: var(--cyan);
+  box-shadow: 0 0 15px var(--cyan-dim);
+  transform: rotateY(180deg);
+}
+
+.chip-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ghost-muted);
+}
+
+.chip-value {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--ghost);
+  margin-top: 2px;
+}
+
+/* Holographic shimmer on chips */
+.holo-chip::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(0, 245, 255, 0.05), transparent);
+  transition: left 0.6s ease;
+}
+
+.holo-chip:hover::after {
+  left: 100%;
+}
+
+/* --- Footer --- */
+.footer {
+  text-align: center;
+  padding: 40px 20px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--ghost-muted);
+  opacity: 0.6;
+  position: relative;
+  z-index: 2;
+}
+
+.footer .earth-spin {
+  display: inline-block;
+  animation: earthRotate 10s linear infinite;
+}
+
+@keyframes earthRotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .contact-content {
+    grid-template-columns: 1fr;
+    gap: var(--gap-lg);
+  }
+
+  .contact-links {
+    order: -1;
+  }
+
+  .holo-chip {
+    padding: 14px 18px;
+  }
+}

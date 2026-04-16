@@ -1,0 +1,371 @@
+/* ============================================
+   ANTI-GRAVITY HACKER COSMOS — Design System
+   Mohammed Shadab Portfolio
+   ============================================ */
+
+/* --- Google Fonts Import --- */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&display=swap');
+
+/* --- CSS Custom Properties --- */
+:root {
+  /* Core Palette */
+  --void: #050508;
+  --void-light: #0a0a12;
+  --void-lighter: #12121f;
+  --indigo: #6C63FF;
+  --indigo-dim: rgba(108, 99, 255, 0.3);
+  --indigo-glow: rgba(108, 99, 255, 0.6);
+  --cyan: #00F5FF;
+  --cyan-dim: rgba(0, 245, 255, 0.3);
+  --cyan-glow: rgba(0, 245, 255, 0.6);
+  --amber: #FFB830;
+  --amber-dim: rgba(255, 184, 48, 0.3);
+  --amber-glow: rgba(255, 184, 48, 0.6);
+  --ghost: #F0F0FF;
+  --ghost-dim: rgba(240, 240, 255, 0.6);
+  --ghost-muted: rgba(240, 240, 255, 0.3);
+
+  /* Project-specific glows */
+  --purple-glow: rgba(138, 43, 226, 0.5);
+  --green-glow: rgba(0, 255, 136, 0.5);
+  --green: #00FF88;
+
+  /* Typography */
+  --font-display: 'Orbitron', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Spacing */
+  --section-padding: clamp(60px, 10vh, 120px);
+  --content-max: 1200px;
+  --gap-sm: 8px;
+  --gap-md: 16px;
+  --gap-lg: 32px;
+  --gap-xl: 64px;
+
+  /* Glass */
+  --glass-bg: rgba(10, 10, 18, 0.6);
+  --glass-border: rgba(108, 99, 255, 0.15);
+  --glass-blur: blur(20px);
+
+  /* Transitions */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --transition-fast: 0.2s var(--ease-out-expo);
+  --transition-med: 0.4s var(--ease-out-expo);
+  --transition-slow: 0.8s var(--ease-out-expo);
+}
+
+/* --- Global Reset --- */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+  overflow-x: hidden;
+}
+
+body {
+  background: var(--void);
+  color: var(--ghost);
+  font-family: var(--font-mono);
+  font-weight: 400;
+  line-height: 1.7;
+  overflow-x: hidden;
+  cursor: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* --- Noise Grain Overlay --- */
+body::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10000;
+  opacity: 0.08;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+/* --- Selection --- */
+::selection {
+  background: var(--indigo);
+  color: var(--ghost);
+}
+
+/* --- Custom Scrollbar --- */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--void);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--indigo-dim);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--indigo);
+}
+
+/* --- Links --- */
+a {
+  color: var(--cyan);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+a:hover {
+  color: var(--indigo);
+}
+
+/* --- Sections Base --- */
+.section {
+  position: relative;
+  min-height: 100vh;
+  padding: var(--section-padding) clamp(20px, 5vw, 80px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+.section-inner {
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+}
+
+/* --- Section Headers --- */
+.section-tag {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--cyan);
+  margin-bottom: var(--gap-md);
+  opacity: 0.7;
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--ghost);
+  margin-bottom: var(--gap-xl);
+  position: relative;
+}
+
+.section-title::after {
+  content: '';
+  display: block;
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--indigo), var(--cyan));
+  margin-top: var(--gap-md);
+  border-radius: 2px;
+}
+
+/* --- Glass Card Utility --- */
+.glass-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  padding: var(--gap-lg);
+  transition: border-color var(--transition-med), box-shadow var(--transition-med);
+}
+
+.glass-card:hover {
+  border-color: var(--indigo-glow);
+  box-shadow: 0 0 30px var(--indigo-dim), inset 0 0 30px rgba(108, 99, 255, 0.05);
+}
+
+/* --- Glow Utilities --- */
+.glow-indigo { text-shadow: 0 0 20px var(--indigo-glow), 0 0 40px var(--indigo-dim); }
+.glow-cyan { text-shadow: 0 0 20px var(--cyan-glow), 0 0 40px var(--cyan-dim); }
+.glow-amber { text-shadow: 0 0 20px var(--amber-glow), 0 0 40px var(--amber-dim); }
+
+/* --- Reveal Animation Classes --- */
+.reveal {
+  opacity: 0;
+  transform: translateY(40px);
+  transition: opacity 0.8s var(--ease-out-expo), transform 0.8s var(--ease-out-expo);
+}
+.reveal.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reveal-left {
+  opacity: 0;
+  transform: translateX(-60px);
+  transition: opacity 0.8s var(--ease-out-expo), transform 0.8s var(--ease-out-expo);
+}
+.reveal-left.active {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.reveal-right {
+  opacity: 0;
+  transform: translateX(60px);
+  transition: opacity 0.8s var(--ease-out-expo), transform 0.8s var(--ease-out-expo);
+}
+.reveal-right.active {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* --- Countdown Overlay --- */
+#countdown-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--void);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  transition: opacity 0.6s ease, visibility 0.6s ease;
+}
+
+#countdown-overlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+#countdown-text {
+  font-family: var(--font-display);
+  font-size: clamp(4rem, 12vw, 10rem);
+  font-weight: 900;
+  color: var(--cyan);
+  text-shadow: 0 0 40px var(--cyan-glow), 0 0 80px var(--cyan-dim);
+  animation: countPulse 0.8s ease-in-out;
+}
+
+@keyframes countPulse {
+  0% { transform: scale(0.5); opacity: 0; }
+  50% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* --- Fuel Gauge --- */
+#fuel-gauge {
+  position: fixed;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 200px;
+  background: var(--void-lighter);
+  border-radius: 2px;
+  z-index: 9998;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity var(--transition-med);
+}
+
+#fuel-gauge.visible {
+  opacity: 1;
+}
+
+#fuel-fill {
+  width: 100%;
+  height: 0%;
+  background: linear-gradient(to top, var(--indigo), var(--cyan));
+  border-radius: 2px;
+  transition: height 0.1s linear;
+  position: absolute;
+  bottom: 0;
+  box-shadow: 0 0 10px var(--cyan-glow);
+}
+
+#fuel-label {
+  position: absolute;
+  bottom: -25px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--ghost-muted);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+/* --- Warp Flash --- */
+.warp-flash {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, var(--indigo-dim), var(--cyan-dim));
+  z-index: 9990;
+  pointer-events: none;
+  opacity: 0;
+  animation: warpFlash 0.2s ease-out forwards;
+}
+
+@keyframes warpFlash {
+  0% { opacity: 0.6; }
+  100% { opacity: 0; }
+}
+
+/* --- Easter Egg Explosion --- */
+#easter-egg-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 99998;
+  pointer-events: none;
+}
+
+/* --- Mobile Responsive --- */
+@media (max-width: 768px) {
+  body {
+    cursor: auto;
+  }
+
+  .section {
+    padding: 60px 20px;
+  }
+
+  .section-title {
+    font-size: 1.5rem;
+    letter-spacing: 2px;
+  }
+
+  #fuel-gauge {
+    display: none;
+  }
+}
+
+/* --- Utilities --- */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}

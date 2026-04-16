@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Mohammed Shadab — CS student, AI/ML builder, hackathon finalist, and legal-tech innovator. Building the future at the intersection of code, law, and artificial intelligence.">
+  <meta name="keywords" content="Mohammed Shadab, portfolio, AI/ML engineer, legal tech, hackathon, full stack developer, MIT Manipal">
+  <meta name="author" content="Mohammed Shadab">
+  <meta property="og:title" content="Mohammed Shadab — Anti-Gravity Portfolio">
+  <meta property="og:description" content="CS student, AI/ML builder, hackathon finalist, and legal-tech innovator.">
+  <meta property="og:type" content="website">
+  <meta name="theme-color" content="#050508">
+
+  <title>Mohammed Shadab — Anti-Gravity Portfolio</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/index.css">
+  <link rel="stylesheet" href="css/hero.css">
+  <link rel="stylesheet" href="css/nav.css">
+  <link rel="stylesheet" href="css/about.css">
+  <link rel="stylesheet" href="css/projects.css">
+  <link rel="stylesheet" href="css/experience.css">
+  <link rel="stylesheet" href="css/awards.css">
+  <link rel="stylesheet" href="css/contact.css">
+</head>
+<body>
+
+
+
+  <!-- ============================
+       FUEL GAUGE (Scroll Progress)
+       ============================ -->
+  <div id="fuel-gauge">
+    <div id="fuel-fill"></div>
+    <span id="fuel-label">FUEL</span>
+  </div>
+
+  <!-- ============================
+       NAVIGATION
+       ============================ -->
+  <nav id="main-nav" aria-label="Main navigation">
+    <div class="nav-inner">
+      <div class="nav-hamburger" aria-label="Toggle menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      <div class="nav-items">
+        <a href="#about" class="nav-item" data-text="// ABOUT">// ABOUT</a>
+        <a href="#projects" class="nav-item" data-text="// PROJECTS">// PROJECTS</a>
+        <a href="#experience" class="nav-item" data-text="// EXPERIENCE">// EXPERIENCE</a>
+        <a href="#awards" class="nav-item" data-text="// AWARDS">// AWARDS</a>
+        <a href="#contact" class="nav-item" data-text="// CONTACT">// CONTACT</a>
+      </div>
+      <div class="nav-satellite"></div>
+    </div>
+  </nav>
+
+  <!-- ============================
+       SCENE 1 — HERO
+       ============================ -->
+  <section id="hero">
+    <canvas id="hero-canvas"></canvas>
+    <div id="hero-stars-fallback"></div>
+
+    <div class="hero-content">
+      <h1 class="hero-name" aria-label="Mohammed Shadab">
+        <span class="letter">M</span><span class="letter">O</span><span class="letter">H</span><span class="letter">A</span><span class="letter">M</span><span class="letter">M</span><span class="letter">E</span><span class="letter">D</span><span class="letter space"> </span><span class="letter">S</span><span class="letter">H</span><span class="letter">A</span><span class="letter">D</span><span class="letter">A</span><span class="letter">B</span>
+      </h1>
+
+      <div class="hero-subtitle">
+        <span class="typewriter-prefix">&gt;&nbsp;</span>
+        <span class="typewriter-text"></span>
+        <span class="typewriter-cursor"></span>
+      </div>
+
+      <a href="#about" class="hero-cta">
+        <span>ENTER ORBIT</span>
+        <span class="cta-rocket">🚀</span>
+      </a>
+    </div>
+
+    <div class="scroll-indicator">
+      <span>Scroll</span>
+      <div class="scroll-arrow"></div>
+    </div>
+  </section>
+
+  <!-- ============================
+       SCENE 2 — ABOUT
+       ============================ -->
+  <section id="about" class="section">
+    <div class="section-inner">
+      <span class="section-tag">// ABOUT</span>
+      <h2 class="section-title">Who I Am</h2>
+
+      <div class="about-grid">
+        <!-- Left: Profile -->
+        <div class="about-profile">
+          <div class="hex-container">
+            <div class="hex-ring"></div>
+            <div class="hex-frame">
+              <img src="assets/photo.jpg" alt="Mohammed Shadab" loading="lazy">
+            </div>
+          </div>
+
+          <!-- Radar Chart -->
+          <div class="radar-container reveal">
+            <canvas id="skill-radar"></canvas>
+            <div class="radar-label">Competency Radar</div>
+          </div>
+        </div>
+
+        <!-- Right: Bio -->
+        <div class="about-bio">
+          <p class="bio-line">Hey! I'm <span class="highlight">Mohammed Shadab</span> — a B.Tech student in Computer and Communication Engineering at <span class="highlight-indigo">MIT Manipal</span>.</p>
+
+          <p class="bio-line">I build at the intersection of <span class="highlight">AI/ML</span>, <span class="highlight-amber">legal technology</span>, and <span class="highlight-indigo">full-stack development</span> — turning complex problems into intelligent, accessible solutions.</p>
+
+          <p class="bio-line">From engineering <span class="highlight">INSAAF</span>, a multilingual AI legal chatbot, to building <span class="highlight-amber">VoicePay</span>, a voice-first UPI SDK that reached the finals of Amazon HackOn (60,000+ participants) — I thrive on building products that matter.</p>
+
+          <p class="bio-line">When I'm not coding, I'm managing budgets as Treasurer of the <span class="highlight-indigo">Astronomy Club</span>, orchestrating events for <span class="highlight">4,000–6,000+ participants</span> at TechTatva & Revels, or exploring algorithmic trading strategies.</p>
+
+          <p class="bio-line">Currently interning at <span class="highlight">MadTales.AI</span>, deploying CNN-based document classification pipelines to mobile via Flutter + TensorFlow Lite.</p>
+
+          <!-- Skill Pills -->
+          <div class="skill-pills">
+            <span class="skill-pill">Python</span>
+            <span class="skill-pill">JavaScript</span>
+            <span class="skill-pill">TypeScript</span>
+            <span class="skill-pill">C++</span>
+            <span class="skill-pill">Java</span>
+            <span class="skill-pill">React</span>
+            <span class="skill-pill">Node.js</span>
+            <span class="skill-pill">LangChain</span>
+            <span class="skill-pill">TensorFlow</span>
+            <span class="skill-pill">MongoDB</span>
+            <span class="skill-pill">Firebase</span>
+            <span class="skill-pill">PostgreSQL</span>
+            <span class="skill-pill">Git</span>
+            <span class="skill-pill">Docker</span>
+            <span class="skill-pill">Linux</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================
+       SCENE 3 — PROJECTS
+       ============================ -->
+  <section id="projects" class="section">
+    <div class="section-inner">
+      <span class="section-tag">// PROJECTS</span>
+      <h2 class="section-title">Zero-G Card Galaxy</h2>
+
+      <div class="projects-grid">
+
+        <!-- INSAAF -->
+        <div class="project-card" data-project="insaaf">
+          <div class="card-shimmer"></div>
+          <div class="card-header">
+            <div class="card-icon">
+              <svg class="justice-scales" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 3v18M4 7l8-4 8 4M4 7l-2 8h6L4 7zM20 7l-2 8h6L20 7z"/>
+              </svg>
+            </div>
+            <div>
+              <div class="card-title">INSAAF</div>
+              <span class="card-badge">AI Legal Chatbot</span>
+            </div>
+          </div>
+          <p class="card-description">Multilingual AI chatbot delivering legal assistance using Indian laws via LangChain + OpenAI.</p>
+          <div class="card-tech">
+            <span class="tech-tag">Python</span>
+            <span class="tech-tag">LangChain</span>
+            <span class="tech-tag">OpenAI</span>
+            <span class="tech-tag">MongoDB</span>
+            <span class="tech-tag">React</span>
+          </div>
+          <button class="card-expand" aria-label="Expand INSAAF details">↗</button>
+        </div>
+
+        <!-- VoicePay -->
+        <div class="project-card" data-project="voicepay">
+          <div class="card-shimmer"></div>
+          <div class="card-header">
+            <div class="card-icon">
+              <!-- Soundwave -->
+              <div class="soundwave">
+                <div class="soundwave-bar" style="--bar-height:12px; animation-delay:0s;"></div>
+                <div class="soundwave-bar" style="--bar-height:20px; animation-delay:0.15s;"></div>
+                <div class="soundwave-bar" style="--bar-height:16px; animation-delay:0.3s;"></div>
+                <div class="soundwave-bar" style="--bar-height:22px; animation-delay:0.45s;"></div>
+                <div class="soundwave-bar" style="--bar-height:14px; animation-delay:0.6s;"></div>
+              </div>
+            </div>
+            <div>
+              <div class="card-title">VOICEPAY</div>
+              <span class="card-badge">Amazon HackOn Finalist</span>
+            </div>
+          </div>
+          <p class="card-description">Voice-first UPI payment SDK for mobile and IVR — accessible for visually impaired users.</p>
+          <div class="card-tech">
+            <span class="tech-tag">TypeScript</span>
+            <span class="tech-tag">Node.js</span>
+            <span class="tech-tag">Firebase</span>
+            <span class="tech-tag">GitHub Actions</span>
+          </div>
+          <button class="card-expand" aria-label="Expand VoicePay details">↗</button>
+        </div>
+
+        <!-- Algorithmic Trading Bot -->
+        <div class="project-card" data-project="trading">
+          <div class="card-shimmer"></div>
+          <div class="card-header">
+            <div class="card-icon">
+              <!-- Fake candlestick -->
+              <div class="candlestick-chart">
+                <div class="candle green" style="--candle-h:18px; --candle-delay:0s;"></div>
+                <div class="candle red" style="--candle-h:24px; --candle-delay:0.2s;"></div>
+                <div class="candle green" style="--candle-h:14px; --candle-delay:0.4s;"></div>
+                <div class="candle green" style="--candle-h:28px; --candle-delay:0.6s;"></div>
+                <div class="candle red" style="--candle-h:20px; --candle-delay:0.8s;"></div>
+              </div>
+            </div>
+            <div>
+              <div class="card-title">TRADING BOT</div>
+              <span class="card-badge">Algorithmic</span>
+            </div>
+          </div>
+          <p class="card-description">Intraday trading system leveraging RSI & MA crossover with automated backtesting.</p>
+          <div class="card-tech">
+            <span class="tech-tag">Python</span>
+            <span class="tech-tag">Shoonya API</span>
+            <span class="tech-tag">Pandas</span>
+          </div>
+          <button class="card-expand" aria-label="Expand Trading Bot details">↗</button>
+        </div>
+
+        <!-- KANOON -->
+        <div class="project-card" data-project="kanoon">
+          <div class="card-shimmer"></div>
+          <div class="marble-overlay"></div>
+          <div class="card-header">
+            <div class="card-icon">⚖️</div>
+            <div>
+              <div class="card-title">KANOON</div>
+              <span class="card-badge">Legal Platform</span>
+            </div>
+          </div>
+          <p class="card-description">Law firm web portal with lawyer listings, client intake, auth & CRUD via Supabase.</p>
+          <div class="card-tech">
+            <span class="tech-tag">React</span>
+            <span class="tech-tag">Supabase</span>
+            <span class="tech-tag">SQL</span>
+            <span class="tech-tag">JavaScript</span>
+          </div>
+          <button class="card-expand" aria-label="Expand KANOON details">↗</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Project Modal -->
+    <div class="project-modal-overlay" id="project-modal-overlay">
+      <div class="project-modal">
+        <button class="modal-close" aria-label="Close modal">✕</button>
+        <h3 class="modal-title"></h3>
+        <div class="modal-body"></div>
+        <div class="modal-tech"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================
+       SCENE 4 — EXPERIENCE
+       ============================ -->
+  <section id="experience" class="section">
+    <div class="section-inner">
+      <span class="section-tag">// EXPERIENCE</span>
+      <h2 class="section-title">Mission Log</h2>
+
+      <div class="timeline">
+
+        <!-- MISSION ALPHA -->
+        <div class="timeline-entry">
+          <div class="timeline-dot"></div>
+          <div class="mission-card">
+            <div class="mission-label">MISSION ALPHA</div>
+            <div class="mission-role">AI/ML Intern</div>
+            <div class="mission-org">MadTales.AI, Manipal</div>
+            <div class="mission-duration">MISSION DURATION: 2025</div>
+            <ul class="mission-bullets">
+              <li>Devised and deployed a CNN-based pipeline for automated PDF line classification (Keep / Remove / Review), streamlining document preprocessing.</li>
+              <li>Delivered mobile deployment via Flutter with TensorFlow Lite, tokenizer migration, and real-time classification UI.</li>
+              <li>Explored hybrid CNN–Transformer models for enhanced semantic precision.</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- MISSION BETA -->
+        <div class="timeline-entry">
+          <div class="timeline-dot"></div>
+          <div class="mission-card">
+            <div class="mission-label">MISSION BETA</div>
+            <div class="mission-role">Treasurer</div>
+            <div class="mission-org">Astronomy Club, Manipal</div>
+            <div class="mission-duration">MISSION DURATION: 2025 – 2026</div>
+            <ul class="mission-bullets">
+              <li>Administered a budget exceeding ₹50,000, securing sponsorships and optimizing allocations to support 15+ academic and outreach events.</li>
+              <li>Supervised logistics and finances for workshops, lectures, and stargazing sessions (100–500 attendees), driving engagement growth of 25%.</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- MISSION GAMMA -->
+        <div class="timeline-entry">
+          <div class="timeline-dot"></div>
+          <div class="mission-card">
+            <div class="mission-label">MISSION GAMMA</div>
+            <div class="mission-role">Core & Organizing Committee</div>
+            <div class="mission-org">TechTatva & Revels, Manipal</div>
+            <div class="mission-duration">MISSION DURATION: 2024 – 2026</div>
+            <ul class="mission-bullets">
+              <li>Orchestrated end-to-end event operations and interactive zones, managing 4K–6K+ participants across competitions, talks, and cultural showcases.</li>
+              <li>Created Google Sheets macros and WhatsApp-based workflows to systematize scheduling and communication, reducing manual errors by 26%.</li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================
+       SCENE 5 — AWARDS
+       ============================ -->
+  <section id="awards" class="section">
+    <div class="aurora-bg"></div>
+    <div class="section-inner">
+      <span class="section-tag">// AWARDS</span>
+      <h2 class="section-title">Hall of Legends</h2>
+
+      <div class="trophy-shelf">
+
+        <div class="trophy-card">
+          <span class="trophy-icon">🏆</span>
+          <div class="trophy-rank">RUNNER-UP</div>
+          <div class="trophy-title">Gen AI Hackathon by Google-backed Slang Labs</div>
+          <div class="trophy-tooltip">Built a legal-tech AI solution</div>
+        </div>
+
+        <div class="trophy-card">
+          <span class="trophy-icon">🎯</span>
+          <div class="trophy-rank">QUALIFIED 2X</div>
+          <div class="trophy-title">Smart India Hackathon (SIH) — College Round</div>
+          <div class="trophy-tooltip">Innovative problem-solving</div>
+        </div>
+
+        <div class="trophy-card">
+          <span class="trophy-icon">📊</span>
+          <div class="trophy-rank">4TH PLACE</div>
+          <div class="trophy-title">Ops Essentia Case Study by IIM</div>
+          <div class="trophy-tooltip">Top-ranked among non-MBA teams</div>
+        </div>
+
+        <div class="trophy-card">
+          <span class="trophy-icon">🚀</span>
+          <div class="trophy-rank">FINALIST</div>
+          <div class="trophy-title">Amazon HackOn Season 5</div>
+          <div class="trophy-tooltip">Shortlisted from 60,000+ participants</div>
+        </div>
+
+        <div class="trophy-card">
+          <span class="trophy-icon">🛸</span>
+          <div class="trophy-rank">RUNNER-UP</div>
+          <div class="trophy-title">Drone Challenge, Tech Summit 2019</div>
+          <div class="trophy-tooltip">Awarded ₹15,000 by Deputy CM</div>
+        </div>
+
+      </div>
+      <canvas class="confetti-canvas"></canvas>
+    </div>
+  </section>
+
+  <!-- ============================
+       SCENE 6 — CONTACT
+       ============================ -->
+  <section id="contact" class="section">
+    <canvas id="globe-canvas"></canvas>
+    <div class="section-inner">
+      <span class="section-tag">// CONTACT</span>
+      <h2 class="contact-heading">
+        SEND TRANSMISSION <span class="heading-cursor"></span>
+      </h2>
+
+      <div class="contact-content">
+
+        <!-- Form -->
+        <form class="contact-form" id="contact-form">
+          <div class="form-group">
+            <label class="form-label" for="contact-name">CALLSIGN</label>
+            <input type="text" id="contact-name" class="form-input" placeholder="Your name" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="contact-email">FREQUENCY</label>
+            <input type="email" id="contact-email" class="form-input" placeholder="your@email.com" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="contact-message">MESSAGE</label>
+            <textarea id="contact-message" class="form-textarea" placeholder="Transmit your message..." required></textarea>
+          </div>
+          <button type="submit" class="form-submit">
+            <span>TRANSMIT</span>
+            <span>📡</span>
+          </button>
+        </form>
+
+        <!-- Contact Links -->
+        <div class="contact-links">
+          <a href="mailto:itskmshadab@gmail.com" class="holo-chip">
+            <div class="chip-icon">📧</div>
+            <div>
+              <div class="chip-label">Email</div>
+              <div class="chip-value">itskmshadab@gmail.com</div>
+            </div>
+          </a>
+
+          <a href="https://www.linkedin.com/in/mohammed-shadab-mit/" target="_blank" rel="noopener" class="holo-chip">
+            <div class="chip-icon">💼</div>
+            <div>
+              <div class="chip-label">LinkedIn</div>
+              <div class="chip-value">mohammed-shadab-mit</div>
+            </div>
+          </a>
+
+          <a href="https://github.com/CODEMRKMS" target="_blank" rel="noopener" class="holo-chip">
+            <div class="chip-icon">🐙</div>
+            <div>
+              <div class="chip-label">GitHub</div>
+              <div class="chip-value">CODEMRKMS</div>
+            </div>
+          </a>
+
+          <a href="tel:+917975400892" class="holo-chip">
+            <div class="chip-icon">📱</div>
+            <div>
+              <div class="chip-label">Phone</div>
+              <div class="chip-value">+91-7975400892</div>
+            </div>
+          </a>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================
+       FOOTER
+       ============================ -->
+  <footer class="footer">
+    <p>© 2025 Mohammed Shadab — Built in Zero Gravity <span class="earth-spin">🌍</span></p>
+  </footer>
+
+  <!-- ============================
+       SCRIPTS (Load Order Matters)
+       ============================ -->
+  <!-- Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vanilla-tilt@1.8.1/dist/vanilla-tilt.min.js"></script>
+
+  <!-- App Scripts -->
+  <script src="js/particles.js"></script>
+  <script src="js/cursor.js"></script>
+  <script src="js/hero.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/about.js"></script>
+  <script src="js/projects.js"></script>
+  <script src="js/experience.js"></script>
+  <script src="js/awards.js"></script>
+  <script src="js/contact.js"></script>
+  <script src="js/main.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,190 @@
+/* ============================================
+   NAVIGATION — Floating Frosted Glass Bar
+   ============================================ */
+
+#main-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  padding: 0 clamp(20px, 5vw, 60px);
+  transform: translateY(-100%);
+  opacity: 0;
+  transition: transform 0.5s var(--ease-out-expo), opacity 0.5s var(--ease-out-expo);
+}
+
+#main-nav.visible {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.nav-inner {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(20px, 4vw, 50px);
+  padding: 16px 32px;
+  background: rgba(5, 5, 8, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--indigo-dim);
+  border-radius: 0 0 16px 16px;
+  position: relative;
+}
+
+/* Glowing bottom border */
+.nav-inner::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 20%;
+  right: 20%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--indigo), var(--cyan), var(--indigo), transparent);
+  opacity: 0.8;
+}
+
+/* Nav Items */
+.nav-item {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ghost-muted);
+  text-decoration: none;
+  position: relative;
+  padding: 8px 4px;
+  cursor: none;
+  transition: color var(--transition-fast);
+}
+
+.nav-item:hover,
+.nav-item.active {
+  color: var(--ghost);
+}
+
+/* Glitch Effect on Hover */
+.nav-item::before,
+.nav-item::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 8px;
+  left: 4px;
+  right: 4px;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.nav-item::before {
+  color: var(--cyan);
+  clip-path: inset(0 0 60% 0);
+  transform: translateX(-2px);
+}
+
+.nav-item::after {
+  color: #ff3333;
+  clip-path: inset(40% 0 0 0);
+  transform: translateX(2px);
+}
+
+.nav-item:hover::before,
+.nav-item:hover::after {
+  opacity: 1;
+  animation: glitchNav 0.3s steps(3) infinite;
+}
+
+@keyframes glitchNav {
+  0% { clip-path: inset(0 0 80% 0); transform: translateX(-2px); }
+  25% { clip-path: inset(20% 0 40% 0); transform: translateX(2px); }
+  50% { clip-path: inset(60% 0 0 0); transform: translateX(-1px); }
+  75% { clip-path: inset(10% 0 60% 0); transform: translateX(1px); }
+  100% { clip-path: inset(40% 0 20% 0); transform: translateX(-2px); }
+}
+
+/* Orbiting Satellite Dot */
+.nav-satellite {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: var(--cyan);
+  border-radius: 50%;
+  bottom: -4px;
+  left: 0;
+  transition: left 0.5s var(--ease-out-expo), transform 0.5s var(--ease-out-expo);
+  box-shadow: 0 0 10px var(--cyan-glow), 0 0 20px var(--cyan-dim);
+  pointer-events: none;
+}
+
+/* Mobile Nav */
+.nav-hamburger {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  cursor: pointer;
+  padding: 8px;
+  z-index: 10001;
+}
+
+.nav-hamburger span {
+  display: block;
+  width: 24px;
+  height: 2px;
+  background: var(--ghost);
+  transition: all 0.3s ease;
+  border-radius: 1px;
+}
+
+@media (max-width: 768px) {
+  .nav-inner {
+    justify-content: space-between;
+    padding: 12px 20px;
+  }
+
+  .nav-hamburger {
+    display: flex;
+  }
+
+  .nav-items {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(5, 5, 8, 0.95);
+    backdrop-filter: blur(30px);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+    z-index: 10000;
+  }
+
+  .nav-items.open {
+    display: flex;
+  }
+
+  .nav-items.open .nav-item {
+    font-size: 1rem;
+    letter-spacing: 3px;
+  }
+
+  .nav-satellite {
+    display: none;
+  }
+
+  .nav-hamburger.active span:nth-child(1) {
+    transform: rotate(45deg) translate(5px, 5px);
+  }
+  .nav-hamburger.active span:nth-child(2) {
+    opacity: 0;
+  }
+  .nav-hamburger.active span:nth-child(3) {
+    transform: rotate(-45deg) translate(5px, -5px);
+  }
+}

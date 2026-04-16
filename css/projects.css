@@ -1,0 +1,397 @@
+/* ============================================
+   SCENE 3 — PROJECTS (Zero-G Card Galaxy)
+   ============================================ */
+
+#projects {
+  background: var(--void);
+  perspective: 1200px;
+}
+
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 40px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+/* --- Project Card --- */
+.project-card {
+  position: relative;
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--void-light);
+  border: 1px solid var(--glass-border);
+  padding: 32px;
+  cursor: none;
+  transition: transform 0.4s var(--ease-out-expo), box-shadow 0.4s var(--ease-out-expo);
+  transform-style: preserve-3d;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.project-card:hover {
+  transform: translateY(-8px);
+}
+
+/* Project-specific glows */
+.project-card[data-project="insaaf"] {
+  --card-glow: var(--purple-glow);
+  --card-color: #8B5CF6;
+}
+.project-card[data-project="voicepay"] {
+  --card-glow: var(--amber-glow);
+  --card-color: var(--amber);
+}
+.project-card[data-project="trading"] {
+  --card-glow: var(--green-glow);
+  --card-color: var(--green);
+}
+.project-card[data-project="kanoon"] {
+  --card-glow: var(--cyan-glow);
+  --card-color: var(--cyan);
+}
+
+.project-card:hover {
+  border-color: var(--card-color);
+  box-shadow: 0 0 40px var(--card-glow), inset 0 0 40px rgba(0,0,0,0.3);
+}
+
+/* Holographic Shimmer */
+.card-shimmer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(
+    circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(255,255,255,0.08) 0%,
+    transparent 60%
+  );
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 1;
+}
+
+.project-card:hover .card-shimmer {
+  opacity: 1;
+}
+
+/* Card Content */
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  position: relative;
+  z-index: 2;
+}
+
+.card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--void-lighter);
+  border: 1px solid var(--card-color, var(--indigo-dim));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 1.4rem;
+  color: var(--card-color, var(--indigo));
+  box-shadow: 0 0 15px var(--card-glow, var(--indigo-dim));
+}
+
+.card-title {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ghost);
+  position: relative;
+  z-index: 2;
+}
+
+.card-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background: var(--card-glow, var(--indigo-dim));
+  color: var(--ghost);
+  border-radius: 4px;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.card-description {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--ghost-muted);
+  line-height: 1.6;
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 2;
+}
+
+/* Tech Stack Tags */
+.card-tech {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  position: relative;
+  z-index: 2;
+}
+
+.tech-tag {
+  padding: 4px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 1px;
+  color: var(--card-color, var(--cyan));
+  border: 1px solid var(--card-color, var(--indigo-dim));
+  border-radius: 4px;
+  background: transparent;
+  text-shadow: 0 0 10px var(--card-glow, var(--indigo-dim));
+}
+
+/* Card expand button */
+.card-expand {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--card-color, var(--indigo-dim));
+  background: transparent;
+  color: var(--card-color, var(--indigo));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: none;
+  transition: all var(--transition-fast);
+  font-size: 0.9rem;
+  z-index: 2;
+}
+
+.card-expand:hover {
+  background: var(--card-color, var(--indigo));
+  color: var(--void);
+  box-shadow: 0 0 20px var(--card-glow, var(--indigo-dim));
+}
+
+/* --- Project Specific Animations --- */
+
+/* INSAAF - Justice scales rotation */
+.justice-scales {
+  animation: scalesRotate 4s ease-in-out infinite;
+}
+
+@keyframes scalesRotate {
+  0%, 100% { transform: rotate(-5deg); }
+  50% { transform: rotate(5deg); }
+}
+
+/* VoicePay - Soundwave */
+.soundwave {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 24px;
+}
+
+.soundwave-bar {
+  width: 3px;
+  background: var(--amber);
+  border-radius: 2px;
+  animation: soundPulse 1.2s ease-in-out infinite;
+  box-shadow: 0 0 6px var(--amber-glow);
+}
+
+@keyframes soundPulse {
+  0%, 100% { height: 4px; }
+  50% { height: var(--bar-height, 20px); }
+}
+
+/* Trading - Candlestick */
+.candlestick-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 40px;
+  padding: 4px;
+}
+
+.candle {
+  width: 6px;
+  border-radius: 1px;
+  position: relative;
+  animation: candleTick 2s ease-in-out infinite;
+  animation-delay: var(--candle-delay, 0s);
+}
+
+.candle.green { background: var(--green); box-shadow: 0 0 4px var(--green-glow); }
+.candle.red { background: #ff4444; box-shadow: 0 0 4px rgba(255, 68, 68, 0.5); }
+
+.candle::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1px;
+  height: 8px;
+  background: inherit;
+  top: -4px;
+}
+
+@keyframes candleTick {
+  0%, 100% { height: var(--candle-h, 20px); }
+  50% { height: calc(var(--candle-h, 20px) * 0.6); }
+}
+
+/* KANOON - marble overlay */
+.marble-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence baseFrequency='0.04' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  opacity: 0.5;
+  z-index: 0;
+}
+
+/* --- Project Modal --- */
+.project-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(5, 5, 8, 0.9);
+  backdrop-filter: blur(10px);
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.5s var(--ease-out-expo);
+}
+
+.project-modal-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.project-modal {
+  width: 90%;
+  max-width: 700px;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--void-light);
+  border: 1px solid var(--card-color, var(--indigo-dim));
+  border-radius: 24px;
+  padding: 48px;
+  transform: scale(0.8);
+  transition: transform 0.5s var(--ease-out-expo);
+  position: relative;
+  box-shadow: 0 0 60px var(--card-glow, var(--indigo-dim));
+}
+
+.project-modal-overlay.active .project-modal {
+  transform: scale(1);
+}
+
+.modal-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--ghost-muted);
+  background: transparent;
+  color: var(--ghost);
+  font-size: 1rem;
+  cursor: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.modal-close:hover {
+  border-color: var(--cyan);
+  color: var(--cyan);
+  box-shadow: 0 0 15px var(--cyan-dim);
+}
+
+.modal-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 3px;
+  margin-bottom: var(--gap-lg);
+  color: var(--card-color, var(--ghost));
+}
+
+.modal-body {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  line-height: 1.8;
+  color: var(--ghost-dim);
+}
+
+.modal-body ul {
+  list-style: none;
+  padding: 0;
+}
+
+.modal-body li {
+  padding: 8px 0;
+  padding-left: 20px;
+  position: relative;
+}
+
+.modal-body li::before {
+  content: '›';
+  position: absolute;
+  left: 0;
+  color: var(--card-color, var(--cyan));
+  font-weight: 700;
+}
+
+.modal-tech {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: var(--gap-lg);
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .projects-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .project-card {
+    min-height: 240px;
+    padding: 24px;
+  }
+
+  .project-modal {
+    padding: 28px;
+    width: 95%;
+  }
+}

@@ -1,0 +1,210 @@
+/* ============================================
+   SCENE 5 — AWARDS (Hall of Legends)
+   ============================================ */
+
+#awards {
+  background: var(--void);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Aurora Background */
+.aurora-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(108, 99, 255, 0.05) 0%,
+    rgba(0, 245, 255, 0.03) 30%,
+    rgba(255, 184, 48, 0.03) 60%,
+    rgba(108, 99, 255, 0.05) 100%
+  );
+  animation: auroraShift 15s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes auroraShift {
+  0% {
+    background-position: 0% 50%;
+    filter: hue-rotate(0deg);
+  }
+  50% {
+    background-position: 100% 50%;
+    filter: hue-rotate(30deg);
+  }
+  100% {
+    background-position: 0% 50%;
+    filter: hue-rotate(-20deg);
+  }
+}
+
+/* Trophy Shelf */
+.trophy-shelf {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  perspective: 800px;
+}
+
+/* Trophy Card */
+.trophy-card {
+  background: var(--void-light);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 28px 20px;
+  text-align: center;
+  position: relative;
+  cursor: none;
+  transition: all 0.5s var(--ease-out-expo);
+  overflow: hidden;
+  transform-style: preserve-3d;
+}
+
+.trophy-card::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--trophy-color, var(--indigo));
+  opacity: 0.5;
+  transition: opacity var(--transition-fast), height var(--transition-med);
+}
+
+.trophy-card:hover {
+  transform: translateY(-12px) rotateX(5deg);
+  border-color: var(--trophy-color, var(--indigo));
+  box-shadow: 0 20px 60px var(--trophy-glow, var(--indigo-dim));
+}
+
+.trophy-card:hover::before {
+  height: 100%;
+  opacity: 0.05;
+}
+
+/* Trophy colors */
+.trophy-card:nth-child(1) { --trophy-color: #FFD700; --trophy-glow: rgba(255, 215, 0, 0.2); }
+.trophy-card:nth-child(2) { --trophy-color: var(--indigo); --trophy-glow: var(--indigo-dim); }
+.trophy-card:nth-child(3) { --trophy-color: var(--amber); --trophy-glow: var(--amber-dim); }
+.trophy-card:nth-child(4) { --trophy-color: var(--cyan); --trophy-glow: var(--cyan-dim); }
+.trophy-card:nth-child(5) { --trophy-color: var(--green); --trophy-glow: var(--green-glow); }
+
+/* Trophy Icon */
+.trophy-icon {
+  font-size: 2.5rem;
+  margin-bottom: 16px;
+  display: block;
+  filter: drop-shadow(0 0 15px var(--trophy-glow, var(--indigo-dim)));
+  transition: transform 0.3s ease;
+}
+
+.trophy-card:hover .trophy-icon {
+  transform: scale(1.2) rotate(5deg);
+}
+
+.trophy-rank {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--trophy-color, var(--indigo));
+  margin-bottom: 8px;
+  text-shadow: 0 0 10px var(--trophy-glow, var(--indigo-dim));
+}
+
+.trophy-title {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--ghost-dim);
+}
+
+/* Tooltip */
+.trophy-tooltip {
+  position: absolute;
+  bottom: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--void-lighter);
+  border: 1px solid var(--trophy-color, var(--indigo-dim));
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--ghost-dim);
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s var(--ease-out-expo);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.trophy-tooltip::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 10px;
+  height: 10px;
+  background: var(--void-lighter);
+  border-left: 1px solid var(--trophy-color, var(--indigo-dim));
+  border-top: 1px solid var(--trophy-color, var(--indigo-dim));
+}
+
+.trophy-card:hover .trophy-tooltip {
+  opacity: 1;
+  visibility: visible;
+  bottom: -50px;
+}
+
+/* Confetti canvas */
+.confetti-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Mobile */
+@media (max-width: 1024px) {
+  .trophy-shelf {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .trophy-shelf {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  .trophy-card {
+    padding: 20px 16px;
+  }
+
+  .trophy-icon {
+    font-size: 2rem;
+  }
+
+  .trophy-tooltip {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .trophy-shelf {
+    grid-template-columns: 1fr;
+  }
+}

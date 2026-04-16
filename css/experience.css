@@ -1,0 +1,233 @@
+/* ============================================
+   SCENE 4 — EXPERIENCE (Mission Timeline)
+   ============================================ */
+
+#experience {
+  background: var(--void);
+}
+
+.timeline {
+  position: relative;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px 0;
+}
+
+/* Vertical Line */
+.timeline::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 100%;
+  background: linear-gradient(to bottom, var(--indigo-dim), var(--cyan-dim), var(--indigo-dim));
+  opacity: 0.4;
+}
+
+/* Timeline Entry */
+.timeline-entry {
+  position: relative;
+  width: 45%;
+  margin-bottom: 60px;
+  opacity: 0;
+}
+
+.timeline-entry:nth-child(odd) {
+  margin-left: 5%;
+  transform: translateX(-60px);
+}
+
+.timeline-entry:nth-child(even) {
+  margin-left: 50%;
+  transform: translateX(60px);
+}
+
+.timeline-entry.visible {
+  opacity: 1;
+  transform: translateX(0);
+  transition: all 0.8s var(--ease-out-expo);
+}
+
+/* Warp streak effect */
+.timeline-entry::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--cyan-dim), transparent);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.timeline-entry:nth-child(odd)::before {
+  right: -60px;
+  transform-origin: right center;
+}
+
+.timeline-entry:nth-child(even)::before {
+  left: -60px;
+  transform-origin: left center;
+}
+
+.timeline-entry.warp::before {
+  animation: warpStreak 0.4s ease-out forwards;
+}
+
+@keyframes warpStreak {
+  0% { opacity: 0.8; transform: scaleX(3); }
+  100% { opacity: 0; transform: scaleX(0); }
+}
+
+/* Timeline dot on the center line */
+.timeline-dot {
+  position: absolute;
+  top: 30px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--indigo);
+  border: 2px solid var(--void);
+  box-shadow: 0 0 15px var(--indigo-glow), 0 0 30px var(--indigo-dim);
+  z-index: 2;
+}
+
+.timeline-entry:nth-child(odd) .timeline-dot {
+  right: -37px;
+}
+
+.timeline-entry:nth-child(even) .timeline-dot {
+  left: -37px;
+}
+
+/* Mission Card */
+.mission-card {
+  background: var(--void-light);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 28px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color var(--transition-med), box-shadow var(--transition-med);
+}
+
+.mission-card:hover {
+  border-color: var(--indigo-glow);
+  box-shadow: 0 0 30px var(--indigo-dim);
+}
+
+/* Mission label */
+.mission-label {
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--cyan);
+  margin-bottom: 8px;
+  text-shadow: 0 0 10px var(--cyan-dim);
+}
+
+.mission-role {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ghost);
+  margin-bottom: 4px;
+}
+
+.mission-org {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--indigo);
+  margin-bottom: 4px;
+}
+
+.mission-duration {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--ghost-muted);
+  letter-spacing: 2px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mission-duration::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green-glow);
+  animation: statusBlink 2s ease infinite;
+}
+
+@keyframes statusBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.mission-bullets {
+  list-style: none;
+  padding: 0;
+}
+
+.mission-bullets li {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.7;
+  color: var(--ghost-muted);
+  padding: 6px 0;
+  padding-left: 16px;
+  position: relative;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.5s var(--ease-out-expo);
+}
+
+.mission-bullets li.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.mission-bullets li::before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  color: var(--cyan);
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .timeline::before {
+    left: 20px;
+  }
+
+  .timeline-entry,
+  .timeline-entry:nth-child(odd),
+  .timeline-entry:nth-child(even) {
+    width: calc(100% - 50px);
+    margin-left: 50px;
+    transform: translateX(40px);
+  }
+
+  .timeline-entry.visible {
+    transform: translateX(0);
+  }
+
+  .timeline-dot {
+    left: -37px !important;
+    right: auto !important;
+  }
+
+  .mission-card {
+    padding: 20px;
+  }
+}

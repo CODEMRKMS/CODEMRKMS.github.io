@@ -1,0 +1,267 @@
+/* ============================================
+   SCENE 1 — HERO (Full Viewport, 3D Anti-Gravity)
+   ============================================ */
+
+#hero {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0;
+}
+
+/* Three.js Canvas */
+#hero-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* Hero Content Overlay */
+.hero-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* Name — Each letter is a span */
+.hero-name {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 6vw, 5rem);
+  font-weight: 900;
+  letter-spacing: clamp(8px, 2vw, 25px);
+  text-transform: uppercase;
+  color: var(--ghost);
+  margin-bottom: var(--gap-lg);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.hero-name .letter {
+  display: inline-block;
+  opacity: 0;
+  transform: translate3d(0, 0, 0);
+  text-shadow: 0 0 30px var(--indigo-glow), 0 0 60px var(--indigo-dim);
+  transition: text-shadow 0.3s ease;
+}
+
+.hero-name .letter.space {
+  width: 0.6em;
+}
+
+.hero-name .letter.landed {
+  opacity: 1;
+}
+
+/* Typewriter Subtitle */
+.hero-subtitle {
+  font-family: var(--font-mono);
+  font-size: clamp(0.85rem, 1.8vw, 1.2rem);
+  color: var(--cyan);
+  height: 2em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-bottom: var(--gap-xl);
+}
+
+.typewriter-prefix {
+  color: var(--ghost-muted);
+}
+
+.typewriter-text {
+  color: var(--cyan);
+  text-shadow: 0 0 15px var(--cyan-glow);
+}
+
+.typewriter-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.2em;
+  background: var(--cyan);
+  margin-left: 2px;
+  animation: cursorBlink 0.8s step-end infinite;
+  box-shadow: 0 0 8px var(--cyan-glow);
+}
+
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* CTA Button */
+.hero-cta {
+  pointer-events: all;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 40px;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--ghost);
+  background: transparent;
+  border: 2px solid var(--indigo);
+  border-radius: 50px;
+  cursor: none;
+  position: relative;
+  overflow: hidden;
+  transition: all var(--transition-med);
+  text-decoration: none;
+}
+
+.hero-cta::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: var(--indigo);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.6s var(--ease-out-expo), height 0.6s var(--ease-out-expo);
+  z-index: -1;
+}
+
+.hero-cta:hover::before {
+  width: 300px;
+  height: 300px;
+}
+
+.hero-cta:hover {
+  color: var(--ghost);
+  border-color: var(--indigo);
+  box-shadow: 0 0 30px var(--indigo-dim), 0 0 60px var(--indigo-dim);
+}
+
+/* Radar Ping Animation on CTA */
+.hero-cta::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  border: 2px solid var(--indigo);
+  border-radius: 50px;
+  transform: translate(-50%, -50%);
+  animation: radarPing 2s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes radarPing {
+  0% {
+    width: 100%;
+    height: 100%;
+    opacity: 0.6;
+  }
+  100% {
+    width: 140%;
+    height: 200%;
+    opacity: 0;
+  }
+}
+
+/* Rocket icon in button */
+.cta-rocket {
+  font-size: 1.2em;
+  transition: transform 0.3s ease;
+}
+
+.hero-cta:hover .cta-rocket {
+  transform: translateY(-4px);
+  animation: rocketShake 0.3s ease infinite;
+}
+
+@keyframes rocketShake {
+  0%, 100% { transform: translateY(-4px) rotate(0deg); }
+  25% { transform: translateY(-6px) rotate(-3deg); }
+  75% { transform: translateY(-6px) rotate(3deg); }
+}
+
+/* Scroll Indicator */
+.scroll-indicator {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.5;
+  animation: scrollBounce 2s ease-in-out infinite;
+}
+
+.scroll-indicator span {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--ghost-muted);
+}
+
+.scroll-arrow {
+  width: 20px;
+  height: 20px;
+  border-right: 2px solid var(--cyan);
+  border-bottom: 2px solid var(--cyan);
+  transform: rotate(45deg);
+  opacity: 0.6;
+}
+
+@keyframes scrollBounce {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(10px); }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .hero-name {
+    font-size: 1.6rem;
+    letter-spacing: 6px;
+    white-space: normal;
+  }
+
+  .hero-cta {
+    padding: 12px 28px;
+    font-size: 0.75rem;
+    letter-spacing: 3px;
+  }
+
+  .scroll-indicator {
+    bottom: 20px;
+  }
+}
+
+/* Mobile star fallback */
+#hero-stars-fallback {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+@media (max-width: 768px) {
+  #hero-canvas {
+    display: none;
+  }
+  #hero-stars-fallback {
+    display: block;
+  }
+}
