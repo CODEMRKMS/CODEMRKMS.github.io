@@ -230,9 +230,15 @@
 /* Mobile */
 @media (max-width: 768px) {
   .hero-name {
-    font-size: 1.6rem;
-    letter-spacing: 6px;
+    font-size: clamp(1.2rem, 7vw, 2rem);
+    letter-spacing: clamp(4px, 1.5vw, 8px);
     white-space: normal;
+    word-spacing: 100vw; /* Forces break between words, not mid-word */
+    line-height: 1.4;
+  }
+
+  .hero-name .letter.space {
+    width: 0;
   }
 
   .hero-cta {
