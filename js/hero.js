@@ -227,10 +227,10 @@
     const typewriterEl = document.querySelector('.typewriter-text');
     if (typewriterEl) {
       const titles = [
-        'AI/ML Engineer',
-        'Legal Tech Builder',
-        'Hackathon Finalist',
-        'Full-Stack Developer'
+        'Software Engineer',
+        'AI/ML Builder',
+        'Full-Stack Developer',
+        'Hackathon Finalist'
       ];
       let titleIndex = 0;
       let charIndex = 0;
