@@ -29,6 +29,7 @@
   z-index: 2;
   text-align: center;
   pointer-events: none;
+  perspective: 800px;
 }
 
 /* Name — Each letter is a span */
@@ -42,13 +43,21 @@
   margin-bottom: var(--gap-lg);
   line-height: 1.2;
   white-space: nowrap;
+  transition: transform 0.4s var(--ease-out-expo);
+  transform-style: preserve-3d;
+  pointer-events: all;
 }
 
 .hero-name .letter {
   display: inline-block;
   opacity: 0;
   transform: translate3d(0, 0, 0);
-  text-shadow: 0 0 30px var(--indigo-glow), 0 0 60px var(--indigo-dim);
+  text-shadow:
+    0 0 10px var(--indigo-glow),
+    0 0 30px var(--indigo-glow),
+    0 0 60px var(--indigo-dim),
+    0 0 100px rgba(108, 99, 255, 0.15),
+    0 4px 12px rgba(0, 0, 0, 0.5);
   transition: text-shadow 0.3s ease;
 }
 
@@ -143,6 +152,13 @@
   color: var(--ghost);
   border-color: var(--indigo);
   box-shadow: 0 0 30px var(--indigo-dim), 0 0 60px var(--indigo-dim);
+  transform: translateY(-2px);
+}
+
+.hero-cta:active {
+  transform: translateY(1px) scale(0.96);
+  box-shadow: 0 0 10px var(--indigo-dim);
+  transition: all 0.1s ease;
 }
 
 /* Radar Ping Animation on CTA */

@@ -11,7 +11,10 @@
   padding: 0 clamp(20px, 5vw, 60px);
   transform: translateY(-100%);
   opacity: 0;
-  transition: transform 0.5s var(--ease-out-expo), opacity 0.5s var(--ease-out-expo);
+  transition: transform 0.5s var(--ease-out-expo), opacity 0.5s var(--ease-out-expo), background 0.3s ease;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(5, 5, 8, 0.4);
 }
 
 #main-nav.visible {
@@ -27,9 +30,9 @@
   justify-content: center;
   gap: clamp(20px, 4vw, 50px);
   padding: 16px 32px;
-  background: rgba(5, 5, 8, 0.7);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(5, 5, 8, 0.35);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--indigo-dim);
   border-radius: 0 0 16px 16px;
   position: relative;

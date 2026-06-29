@@ -137,6 +137,29 @@
   align-self: flex-start;
   position: relative;
   overflow: hidden;
+  z-index: 1;
+}
+
+/* Ripple pseudo-element */
+.form-submit .ripple-effect {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  transform: scale(0);
+  animation: rippleExpand 0.6s ease-out forwards;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes rippleExpand {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
 }
 
 .form-submit:hover {
@@ -250,6 +273,45 @@
   opacity: 0.6;
   position: relative;
   z-index: 2;
+  overflow: hidden;
+}
+
+.footer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(108, 99, 255, 0.06) 0%,
+    rgba(0, 245, 255, 0.04) 25%,
+    rgba(5, 5, 8, 0) 50%,
+    rgba(255, 184, 48, 0.04) 75%,
+    rgba(108, 99, 255, 0.06) 100%
+  );
+  background-size: 300% 300%;
+  animation: footerGradientShift 8s ease-in-out infinite;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.footer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--indigo-dim), var(--cyan-dim), var(--indigo-dim), transparent);
+  opacity: 0.5;
+}
+
+@keyframes footerGradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 .footer .earth-spin {

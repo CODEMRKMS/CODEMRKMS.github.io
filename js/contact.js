@@ -100,6 +100,22 @@
     });
   }
 
+  // ---- Ripple Effect on Send Button ----
+  const submitBtn = document.querySelector('.form-submit');
+  if (submitBtn) {
+    submitBtn.addEventListener('click', function(e) {
+      const rect = this.getBoundingClientRect();
+      const ripple = document.createElement('span');
+      ripple.className = 'ripple-effect';
+      const size = Math.max(rect.width, rect.height);
+      ripple.style.width = ripple.style.height = size + 'px';
+      ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+      ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
+      this.appendChild(ripple);
+      setTimeout(() => ripple.remove(), 600);
+    });
+  }
+
   // ---- Holo Chip Flip Animation ----
   const chips = document.querySelectorAll('.holo-chip');
   const chipObserver = new IntersectionObserver((entries) => {

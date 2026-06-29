@@ -11,6 +11,7 @@
   max-width: 800px;
   margin: 0 auto;
   padding: 20px 0;
+  perspective: 1000px;
 }
 
 /* Vertical Line */
@@ -110,12 +111,14 @@
   padding: 28px;
   position: relative;
   overflow: hidden;
-  transition: border-color var(--transition-med), box-shadow var(--transition-med);
+  transition: border-color var(--transition-med), box-shadow var(--transition-med), transform 0.4s var(--ease-out-expo);
+  transform-style: preserve-3d;
 }
 
 .mission-card:hover {
   border-color: var(--indigo-glow);
-  box-shadow: 0 0 30px var(--indigo-dim);
+  box-shadow: 0 0 30px var(--indigo-dim), 0 8px 24px rgba(0, 0, 0, 0.3), 0 0 2px var(--indigo);
+  transform: translateZ(20px) rotateX(-2deg);
 }
 
 /* Mission label */

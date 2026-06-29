@@ -112,4 +112,16 @@
   }, { threshold: 0.1, rootMargin: '0px 0px -60px 0px' });
 
   revealElements.forEach(el => revealObserver.observe(el));
+
+  // ---- Section Tag Accent Line Animation ----
+  const sectionTags = document.querySelectorAll('.section-tag');
+  const tagObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('accent-visible');
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+  sectionTags.forEach(tag => tagObserver.observe(tag));
 })();

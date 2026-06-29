@@ -20,19 +20,6 @@
   }
 
   trophies.forEach(trophy => {
-    // 3D hover tilt
-    trophy.addEventListener('mousemove', (e) => {
-      if (window.innerWidth <= 768) return;
-      const rect = trophy.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / rect.width - 0.5;
-      const y = (e.clientY - rect.top) / rect.height - 0.5;
-      trophy.style.transform = `translateY(-12px) rotateX(${-y * 10}deg) rotateY(${x * 10}deg)`;
-    });
-
-    trophy.addEventListener('mouseleave', () => {
-      trophy.style.transform = '';
-    });
-
     // Confetti burst on hover
     trophy.addEventListener('mouseenter', (e) => {
       if (!confettiPS) return;

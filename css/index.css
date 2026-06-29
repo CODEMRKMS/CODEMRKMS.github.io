@@ -104,17 +104,24 @@ body::after {
 
 /* --- Custom Scrollbar --- */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 ::-webkit-scrollbar-track {
   background: var(--void);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--indigo-dim);
-  border-radius: 3px;
+  background: linear-gradient(180deg, var(--indigo), var(--cyan));
+  border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--indigo);
+  background: linear-gradient(180deg, var(--indigo-glow), var(--cyan-glow));
+  box-shadow: 0 0 6px var(--indigo-glow);
+}
+
+/* Firefox scrollbar */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--indigo-dim) var(--void);
 }
 
 /* --- Links --- */
@@ -154,6 +161,25 @@ a:hover {
   color: var(--cyan);
   margin-bottom: var(--gap-md);
   opacity: 0.7;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+
+.section-tag::before {
+  content: '';
+  display: inline-block;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--indigo), var(--cyan));
+  border-radius: 2px;
+  transition: width 0.8s var(--ease-out-expo);
+  box-shadow: 0 0 8px var(--cyan-dim);
+}
+
+.section-tag.accent-visible::before {
+  width: 32px;
 }
 
 .section-title {

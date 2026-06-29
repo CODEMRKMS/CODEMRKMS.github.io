@@ -221,6 +221,19 @@
           letter.classList.add('landed');
         }, 800 + i * 50);
       });
+
+      // 3D tilt on hover
+      if (window.innerWidth > 768) {
+        nameEl.addEventListener('mousemove', (e) => {
+          const rect = nameEl.getBoundingClientRect();
+          const x = (e.clientX - rect.left) / rect.width - 0.5;
+          const y = (e.clientY - rect.top) / rect.height - 0.5;
+          nameEl.style.transform = `rotateY(${x * 12}deg) rotateX(${-y * 8}deg)`;
+        });
+        nameEl.addEventListener('mouseleave', () => {
+          nameEl.style.transform = 'rotateY(0deg) rotateX(0deg)';
+        });
+      }
     }
 
     // Typewriter effect
