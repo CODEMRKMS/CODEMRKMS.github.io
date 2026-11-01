@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deep Space — 3D Scroll Experience</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=JetBrains+Mono:wght@300;400&display=swap');
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+      color: #e0e0ff;
+      font-family: 'JetBrains Mono', monospace;
+      cursor: crosshair;
+    }
+
+    canvas { display: block; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+
+    /* Vignette overlay */
+    .vignette {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.7) 100%);
+      pointer-events: none; z-index: 2;
+    }
+
+    /* Scan line overlay */
+    .scanlines {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.03) 2px,
+        rgba(0, 0, 0, 0.03) 4px
+      );
+      pointer-events: none; z-index: 3;
+    }
+
+    /* ---- UI Sidebar Labels ---- */
+    .ui-labels {
+      position: fixed;
+      left: 40px;
+      top: 0;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 0;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .zone-label {
+      opacity: 0;
+      transform: translateX(-30px);
+      transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+      padding: 12px 0;
+    }
+
+    .zone-label.active {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .zone-name {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(1rem, 2.5vw, 1.6rem);
+      font-weight: 800;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      background: linear-gradient(90deg, var(--zone-color, #fff), rgba(255,255,255,0.5));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: none;
+      filter: drop-shadow(0 0 12px var(--zone-color, #fff));
+    }
+
+    .zone-sub {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: rgba(200, 200, 255, 0.4);
+      margin-top: 4px;
+    }
+
+    .zone-line {
+      width: 0;
+      height: 1px;
+      background: var(--zone-color, #fff);
+      margin-top: 8px;
+      transition: width 1s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 0 10px var(--zone-color, #fff);
+    }
+
+    .zone-label.active .zone-line {
+      width: 80px;
+    }
+
+    /* ---- Depth HUD ---- */
+    .hud {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    .hud-depth {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.65rem;
+      letter-spacing: 4px;
+      color: rgba(200, 200, 255, 0.3);
+    }
+
+    .hud-bar {
+      width: 200px;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 2px;
+      margin: 8px auto 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hud-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #6C63FF, #00F5FF);
+      border-radius: 2px;
+      transition: width 0.3s ease;
+      box-shadow: 0 0 8px rgba(108, 99, 255, 0.5);
+    }
+
+    /* ---- Scroll hint ---- */
+    .scroll-hint {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      opacity: 0.5;
+      animation: hintBounce 2s ease-in-out infinite;
+      pointer-events: none;
+      transition: opacity 1s ease;
+    }
+
+    .scroll-hint.hidden { opacity: 0; }
+
+    .scroll-hint span {
+      font-size: 0.6rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: rgba(200, 200, 255, 0.4);
+    }
+
+    .scroll-hint-arrow {
+      width: 16px; height: 16px;
+      border-right: 1.5px solid rgba(200, 200, 255, 0.3);
+      border-bottom: 1.5px solid rgba(200, 200, 255, 0.3);
+      transform: rotate(45deg);
+    }
+
+    @keyframes hintBounce {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50% { transform: translateX(-50%) translateY(8px); }
+    }
+
+    /* Mobile */
+    @media (max-width: 768px) {
+      .ui-labels { left: 20px; }
+      .zone-name { font-size: 0.9rem; letter-spacing: 2px; }
+      .hud-bar { width: 140px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="vignette"></div>
+  <div class="scanlines"></div>
+
+  <!-- Zone Labels -->
+  <div class="ui-labels">
+    <div class="zone-label" id="zone-deep" style="--zone-color: #6C63FF;">
+      <div class="zone-name">Deep Space</div>
+      <div class="zone-sub">Sector 7G — Uncharted</div>
+      <div class="zone-line"></div>
+    </div>
+    <div class="zone-label" id="zone-neptune" style="--zone-color: #4169E1;">
+      <div class="zone-name">Neptune Outpost</div>
+      <div class="zone-sub">Cryo Station — 30 AU</div>
+      <div class="zone-line"></div>
+    </div>
+    <div class="zone-label" id="zone-saturn" style="--zone-color: #DAA520;">
+      <div class="zone-name">Saturn Ring</div>
+      <div class="zone-sub">Gas Mining Colony — 9.5 AU</div>
+      <div class="zone-line"></div>
+    </div>
+    <div class="zone-label" id="zone-terra" style="--zone-color: #00CED1;">
+      <div class="zone-name">Terra Station</div>
+      <div class="zone-sub">Orbital Dock — 1 AU</div>
+      <div class="zone-line"></div>
+    </div>
+    <div class="zone-label" id="zone-core" style="--zone-color: #FF6B35;">
+      <div class="zone-name">The Core</div>
+      <div class="zone-sub">Solar Proximity Alert</div>
+      <div class="zone-line"></div>
+    </div>
+  </div>
+
+  <!-- HUD -->
+  <div class="hud">
+    <div class="hud-depth">DEPTH <span id="depth-val">100</span> AU</div>
+    <div class="hud-bar"><div class="hud-bar-fill" id="hud-fill"></div></div>
+  </div>
+
+  <!-- Scroll hint -->
+  <div class="scroll-hint" id="scroll-hint">
+    <span>Scroll to fly</span>
+    <div class="scroll-hint-arrow"></div>
+  </div>
+
+  <!-- Three.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+  (function() {
+    'use strict';
+
+    // ============ SCENE SETUP ============
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x000005, 0.003);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 500);
+    camera.position.set(0, 8, 100);
+    camera.lookAt(0, 0, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    document.body.prepend(renderer.domElement);
+
+    // ============ SCROLL STATE ============
+    let targetZ = 100;
+    let currentZ = 100;
+    const MIN_Z = 5;
+    const MAX_Z = 100;
+    const DAMPING = 0.04;
+    const SCROLL_SPEED = 0.06;
+    let hasScrolled = false;
+
+    // ============ STARFIELD ============
+    const starCount = 2500;
+    const starGeo = new THREE.BufferGeometry();
+    const starPos = new Float32Array(starCount * 3);
+    const starSizes = new Float32Array(starCount);
+    for (let i = 0; i < starCount; i++) {
+      const r = 150 + Math.random() * 200;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      starPos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      starPos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+      starPos[i * 3 + 2] = r * Math.cos(phi);
+      starSizes[i] = 0.3 + Math.random() * 1.2;
+    }
+    starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+    starGeo.setAttribute('size', new THREE.BufferAttribute(starSizes, 1));
+
+    const starMat = new THREE.PointsMaterial({
+      color: 0xeeeeff,
+      size: 0.4,
+      transparent: true,
+      opacity: 0.8,
+      sizeAttenuation: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    const stars = new THREE.Points(starGeo, starMat);
+    scene.add(stars);
+
+    // Near-field dust particles
+    const dustCount = 600;
+    const dustGeo = new THREE.BufferGeometry();
+    const dustPos = new Float32Array(dustCount * 3);
+    for (let i = 0; i < dustCount; i++) {
+      dustPos[i * 3] = (Math.random() - 0.5) * 80;
+      dustPos[i * 3 + 1] = (Math.random() - 0.5) * 40;
+      dustPos[i * 3 + 2] = (Math.random() - 0.5) * 200;
+    }
+    dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+    const dustMat = new THREE.PointsMaterial({
+      color: 0x6C63FF,
+      size: 0.15,
+      transparent: true,
+      opacity: 0.3,
+      sizeAttenuation: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    scene.add(new THREE.Points(dustGeo, dustMat));
+
+    // ============ LIGHTING ============
+    const sunLight = new THREE.PointLight(0xffcc44, 3, 200);
+    sunLight.position.set(0, 0, 0);
+    scene.add(sunLight);
+
+    const ambientLight = new THREE.AmbientLight(0x111133, 0.5);
+    scene.add(ambientLight);
+
+    const rimLight = new THREE.DirectionalLight(0x4444ff, 0.3);
+    rimLight.position.set(-50, 20, 50);
+    scene.add(rimLight);
+
+    // ============ SUN ============
+    const sunGeo = new THREE.SphereGeometry(3, 64, 64);
+    const sunMat = new THREE.MeshBasicMaterial({
+      color: 0xffaa00,
+      transparent: true,
+      opacity: 1
+    });
+    const sun = new THREE.Mesh(sunGeo, sunMat);
+    scene.add(sun);
+
+    // Sun inner glow
+    const sunGlowGeo = new THREE.SphereGeometry(3.5, 32, 32);
+    const sunGlowMat = new THREE.MeshBasicMaterial({
+      color: 0xff8800,
+      transparent: true,
+      opacity: 0.25,
+      side: THREE.BackSide
+    });
+    scene.add(new THREE.Mesh(sunGlowGeo, sunGlowMat));
+
+    // Sun outer corona (sprite)
+    const coronaCanvas = document.createElement('canvas');
+    coronaCanvas.width = 256;
+    coronaCanvas.height = 256;
+    const cctx = coronaCanvas.getContext('2d');
+    const grad = cctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+    grad.addColorStop(0, 'rgba(255, 200, 50, 0.6)');
+    grad.addColorStop(0.2, 'rgba(255, 150, 30, 0.3)');
+    grad.addColorStop(0.5, 'rgba(255, 100, 0, 0.08)');
+    grad.addColorStop(1, 'rgba(255, 50, 0, 0)');
+    cctx.fillStyle = grad;
+    cctx.fillRect(0, 0, 256, 256);
+    const coronaTex = new THREE.CanvasTexture(coronaCanvas);
+    const coronaMat = new THREE.SpriteMaterial({
+      map: coronaTex,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    const corona = new THREE.Sprite(coronaMat);
+    corona.scale.set(25, 25, 1);
+    scene.add(corona);
+
+    // ============ PLANETS ============
+    const planets = [];
+
+    function createPlanet(config) {
+      const group = new THREE.Group();
+
+      // Solid body
+      const bodyGeo = new THREE.SphereGeometry(config.size, 32, 32);
+      const bodyMat = new THREE.MeshStandardMaterial({
+        color: config.color,
+        roughness: 0.6,
+        metalness: 0.3,
+        emissive: config.emissive || 0x000000,
+        emissiveIntensity: config.emissiveIntensity || 0
+      });
+      const body = new THREE.Mesh(bodyGeo, bodyMat);
+      group.add(body);
+
+      // Wireframe overlay
+      const wireGeo = new THREE.SphereGeometry(config.size * 1.02, 16, 12);
+      const wireMat = new THREE.MeshBasicMaterial({
+        color: config.wireColor || config.color,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.15,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+      const wire = new THREE.Mesh(wireGeo, wireMat);
+      group.add(wire);
+
+      // Atmosphere glow
+      const atmosGeo = new THREE.SphereGeometry(config.size * 1.15, 32, 32);
+      const atmosMat = new THREE.MeshBasicMaterial({
+        color: config.glowColor || config.color,
+        transparent: true,
+        opacity: 0.08,
+        side: THREE.BackSide,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+      group.add(new THREE.Mesh(atmosGeo, atmosMat));
+
+      scene.add(group);
+
+      // Orbit line
+      const orbitCurve = new THREE.EllipseCurve(0, 0, config.orbit, config.orbit, 0, Math.PI * 2, false, 0);
+      const orbitPoints = orbitCurve.getPoints(128);
+      const orbitGeo = new THREE.BufferGeometry().setFromPoints(
+        orbitPoints.map(p => new THREE.Vector3(p.x, 0, p.y))
+      );
+      const orbitMat = new THREE.LineBasicMaterial({
+        color: config.orbitColor || 0x333366,
+        transparent: true,
+        opacity: 0.15,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+      scene.add(new THREE.Line(orbitGeo, orbitMat));
+
+      const planet = {
+        group,
+        body,
+        wire,
+        orbit: config.orbit,
+        speed: config.speed,
+        angle: config.startAngle || Math.random() * Math.PI * 2,
+        tilt: config.tilt || 0,
+        spinSpeed: config.spinSpeed || 0.01
+      };
+      planets.push(planet);
+      return planet;
+    }
+
+    // Planet 1: Neptune — far outer
+    createPlanet({
+      size: 2.2,
+      color: 0x4169E1,
+      wireColor: 0x6699FF,
+      glowColor: 0x4488FF,
+      emissive: 0x112244,
+      emissiveIntensity: 0.2,
+      orbit: 70,
+      speed: 0.08,
+      spinSpeed: 0.008,
+      orbitColor: 0x334488,
+      startAngle: 0.8
+    });
+
+    // Planet 2: Saturn — golden rings vibe
+    createPlanet({
+      size: 2.8,
+      color: 0xDAA520,
+      wireColor: 0xFFD700,
+      glowColor: 0xCC9900,
+      emissive: 0x332200,
+      emissiveIntensity: 0.15,
+      orbit: 50,
+      speed: 0.12,
+      spinSpeed: 0.012,
+      orbitColor: 0x554422,
+      startAngle: 2.5
+    });
+
+    // Saturn's ring
+    const ringGeo = new THREE.RingGeometry(3.5, 5.5, 64);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: 0xCCBB88,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.25,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    const saturnRing = new THREE.Mesh(ringGeo, ringMat);
+    saturnRing.rotation.x = Math.PI * 0.45;
+    planets[1].group.add(saturnRing);
+
+    // Planet 3: Earth — blue-green
+    createPlanet({
+      size: 1.5,
+      color: 0x00CED1,
+      wireColor: 0x00FFFF,
+      glowColor: 0x00BBCC,
+      emissive: 0x003333,
+      emissiveIntensity: 0.2,
+      orbit: 30,
+      speed: 0.18,
+      spinSpeed: 0.015,
+      orbitColor: 0x225555,
+      startAngle: 4.2
+    });
+
+    // Planet 4: Mercury — small reddish inner
+    createPlanet({
+      size: 0.8,
+      color: 0xFF6B35,
+      wireColor: 0xFF8855,
+      glowColor: 0xCC4400,
+      emissive: 0x331100,
+      emissiveIntensity: 0.3,
+      orbit: 12,
+      speed: 0.35,
+      spinSpeed: 0.02,
+      orbitColor: 0x553322,
+      startAngle: 1.0
+    });
+
+    // ============ SCROLL HANDLING ============
+    function onWheel(e) {
+      e.preventDefault();
+      if (!hasScrolled) {
+        hasScrolled = true;
+        document.getElementById('scroll-hint').classList.add('hidden');
+      }
+      const delta = e.deltaY * SCROLL_SPEED;
+      targetZ = Math.max(MIN_Z, Math.min(MAX_Z, targetZ - delta));
+    }
+
+    window.addEventListener('wheel', onWheel, { passive: false });
+
+    // Touch handling
+    let touchStartY = 0;
+    let touchPrevY = 0;
+    window.addEventListener('touchstart', (e) => {
+      touchStartY = e.touches[0].clientY;
+      touchPrevY = touchStartY;
+    }, { passive: true });
+
+    window.addEventListener('touchmove', (e) => {
+      const touchY = e.touches[0].clientY;
+      const delta = (touchPrevY - touchY) * SCROLL_SPEED * 0.8;
+      touchPrevY = touchY;
+      targetZ = Math.max(MIN_Z, Math.min(MAX_Z, targetZ - delta));
+      if (!hasScrolled) {
+        hasScrolled = true;
+        document.getElementById('scroll-hint').classList.add('hidden');
+      }
+    }, { passive: true });
+
+    // ============ UI ZONE LABELS ============
+    const zones = [
+      { id: 'zone-deep',    minZ: 85, maxZ: 100 },
+      { id: 'zone-neptune', minZ: 62, maxZ: 84  },
+      { id: 'zone-saturn',  minZ: 40, maxZ: 61  },
+      { id: 'zone-terra',   minZ: 22, maxZ: 39  },
+      { id: 'zone-core',    minZ: 5,  maxZ: 21  }
+    ];
+
+    function updateUI() {
+      const z = currentZ;
+      zones.forEach(zone => {
+        const el = document.getElementById(zone.id);
+        if (z >= zone.minZ && z <= zone.maxZ) {
+          el.classList.add('active');
+        } else {
+          el.classList.remove('active');
+        }
+      });
+
+      // HUD
+      const progress = ((MAX_Z - z) / (MAX_Z - MIN_Z)) * 100;
+      document.getElementById('depth-val').textContent = Math.round(z);
+      document.getElementById('hud-fill').style.width = progress + '%';
+    }
+
+    // ============ MOUSE PARALLAX ============
+    let mouseX = 0, mouseY = 0;
+    window.addEventListener('mousemove', (e) => {
+      mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+      mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+    });
+
+    // ============ RESIZE ============
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // ============ ANIMATION LOOP ============
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = clock.getDelta();
+      const elapsed = clock.getElapsedTime();
+
+      // Smooth camera Z with damping
+      currentZ += (targetZ - currentZ) * DAMPING;
+      camera.position.z = currentZ;
+
+      // Slight camera sway from mouse
+      camera.position.x += (mouseX * 4 - camera.position.x) * 0.02;
+      camera.position.y += (8 + mouseY * 3 - camera.position.y) * 0.02;
+      camera.lookAt(0, 0, 0);
+
+      // Rotate starfield slowly
+      stars.rotation.y += 0.00008;
+      stars.rotation.x += 0.00003;
+
+      // Sun pulse
+      const pulse = 1 + Math.sin(elapsed * 1.5) * 0.05;
+      sun.scale.set(pulse, pulse, pulse);
+      corona.scale.set(25 * pulse, 25 * pulse, 1);
+      sunLight.intensity = 3 + Math.sin(elapsed * 2) * 0.5;
+
+      // Animate planets
+      planets.forEach(p => {
+        p.angle += p.speed * dt;
+        p.group.position.x = Math.cos(p.angle) * p.orbit;
+        p.group.position.z = Math.sin(p.angle) * p.orbit;
+        p.group.position.y = Math.sin(p.angle * 0.5) * 1.5; // slight vertical wobble
+
+        // Self-rotation
+        p.body.rotation.y += p.spinSpeed;
+        p.wire.rotation.y -= p.spinSpeed * 0.7;
+        p.wire.rotation.x += p.spinSpeed * 0.3;
+      });
+
+      // Update UI
+      updateUI();
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+  })();
+  </script>
+</body>
+</html>

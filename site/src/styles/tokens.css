@@ -1,0 +1,40 @@
+:root {
+  color-scheme: dark;
+  --bg: #0c0e14;
+  --fg: #ece8e1;
+  --fg-2: #a9a8ae;
+  --rule: rgba(236, 232, 225, 0.16);
+  --accent: #f2a541;
+  --on-accent: #0c0e14;
+  --p1: #5b5bd6;
+  --p2: #2bb3a3;
+  --p3: #f2a541;
+
+  --f-display: 'Anybody', 'Arial Black', system-ui, sans-serif;
+  --f-body: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --t-0: clamp(1.0625rem, 1rem + 0.2vw, 1.1875rem);
+  --t-1: clamp(1.2rem, 1.05rem + 0.55vw, 1.5rem);
+  --t-2: clamp(1.5rem, 1.2rem + 1vw, 2.1rem);
+  --t-3: clamp(1.9rem, 1.4rem + 1.8vw, 3rem);
+  --t-4: clamp(2.7rem, 1.9rem + 3.4vw, 5rem);
+  --t-5: clamp(3.2rem, 2.2rem + 5.2vw, 7.4rem);
+  --t-6: clamp(3.6rem, 2rem + 9vw, 12rem);
+
+  --pad: clamp(20px, 4vw, 64px);
+  --gap: clamp(16px, 2vw, 24px);
+  --space: clamp(88px, 13vw, 210px);
+}
+
+:root[data-theme='day'] {
+  color-scheme: light;
+  --bg: #f3efe6;
+  --fg: #14161d;
+  --fg-2: #4a4c57;
+  --rule: rgba(20, 22, 29, 0.18);
+  --accent: #8a4f00;
+  --on-accent: #fdf8ef;
+  --p1: #3a3aa8;
+  --p2: #0e7f73;
+  --p3: #b8690a;
+}

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!--include:head title="AI-proctored exam - Mohammed Shadab" desc="An edge-AI exam proctoring pipeline for Android: gaze, head pose, audio, ultrasonic proximity and typing analysis at 22 fps with sub-120 ms inference latency." path="/work/proctoring/"-->
+</head>
+<body>
+<!--include:header c_work="aria-current='page'"-->
+<main id="main" tabindex="-1">
+
+  <section class="hero project-hero" data-form="gaze" data-kind="hero" aria-labelledby="top">
+    <h1 id="top" class="display" style="--chars:13">AI-proctored<br>exam</h1>
+    <p class="lede" data-split>Edge AI on an Android phone that watches gaze, head pose, sound and typing, and locks the device down while the exam runs.</p>
+    <p class="meta">Manuscript in preparation for IEEE submission. Java, Android SDK, ML Kit, Firebase, CameraX.</p>
+  </section>
+
+  <section class="sec" data-form="gaze" data-kind="right" aria-labelledby="p-h">
+    <div class="col-text">
+      <h2 id="p-h" class="display h3" style="--chars:7" data-split>Problem</h2>
+      <p class="body">A live exam can leak through several channels at once. A candidate can look away, get help from someone nearby, type answers that look scripted, or leave the exam app. A system that watches only one of those misses the rest.</p>
+      <p class="body">I wanted a proctor that reads several signals together and runs on the phone itself.</p>
+    </div>
+  </section>
+
+  <section class="sec" data-form="gaze" data-kind="left" aria-labelledby="a-h">
+    <div class="col-text col-end">
+      <h2 id="a-h" class="display h3" style="--chars:8" data-split>Approach</h2>
+      <p class="body">Treat the phone as a bundle of sensors. The camera gives gaze and head pose, the microphone gives sound level, an ultrasonic band gives proximity, the keyboard gives timing, and the operating system gives lockdown.</p>
+      <p class="body">Each signal is modest on its own. The value is in combining them, which is why the pipeline is built around all five.</p>
+      <dl class="figs">
+        <div class="fig"><dt class="fig-n">22 fps</dt><dd>real-time tracking</dd></div>
+        <div class="fig"><dt class="fig-n">&lt;120 ms</dt><dd>inference latency</dd></div>
+        <div class="fig"><dt class="fig-n">35%</dt><dd>lower missed-detection rate</dd></div>
+        <div class="fig"><dt class="fig-n">45%</dt><dd>lower UI refresh latency</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section class="sec" data-form="gaze" data-kind="right" aria-labelledby="t-h">
+    <div class="col-text">
+      <h2 id="t-h" class="display h3" style="--chars:9" data-split>Technical<br>breakdown</h2>
+      <ol class="steps">
+        <li><h3>Vision and audio</h3><p>ML Kit BlazeFace and CameraX feed a real-time pipeline that tracks gaze, head pose and RMS audio level. It runs at 22 fps with inference latency under 120 ms.</p></li>
+        <li><h3>Collusion and scripted input</h3><p>An ultrasonic proximity engine (FFT over the 20 to 30 kHz band) and a keystroke-variance analyzer flag collusion and scripted input. Together they reduced the missed-detection rate by 35%.</p></li>
+        <li><h3>Device lockdown</h3><p>Android Kiosk Mode (<code>startLockTask</code>), <code>FLAG_SECURE</code> and clipboard sanitization enforce lockdown at the OS level and remove common cheating vectors during live exams.</p></li>
+        <li><h3>Live data to native UI</h3><p>A <code>MatrixCursor</code> bridge binds asynchronous Firebase Realtime Database streams to native UI adapters, which cut UI refresh latency by 45%.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="sec short" data-form="gaze" data-kind="left" aria-labelledby="s-h">
+    <div class="col-text col-end">
+      <h2 id="s-h" class="display h3" style="--chars:5" data-split>Stack</h2>
+      <p class="body">Java, Android SDK, ML Kit (BlazeFace), CameraX, Firebase Realtime Database.</p>
+      <p class="body">The work is being written up as a manuscript for IEEE submission.</p>
+    </div>
+  </section>
+
+  <section class="next" aria-label="Next project">
+    <p class="meta">Next project</p>
+    <a class="next-link display" href="/work/quant-trading/" style="--chars:16">Sentiment-driven<br>quant trading</a>
+  </section>
+
+</main>
+<!--include:footer-->
+</body>
+</html>

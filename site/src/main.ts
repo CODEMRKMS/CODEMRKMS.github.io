@@ -1,0 +1,86 @@
+import './styles/index.css';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import Lenis from 'lenis';
+import type { PointField, Target } from './gl/field';
+import { initTheme } from './theme';
+import { initWidthAxis } from './type';
+import { Router } from './router';
+import { readTarget } from './page';
+
+gsap.registerPlugin(ScrollTrigger);
+
+const root = document.documentElement;
+const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+async function boot() {
+  const canvas = document.getElementById('field') as HTMLCanvasElement | null;
+  let hasGL = !!canvas && !!window.WebGLRenderingContext;
+  let field: PointField | null = null;
+  let mod: typeof import('./gl/field') | null = null;
+  if (hasGL) {
+    // three.js lives in its own chunk, fetched only now, after the page has painted
+    mod = await import('./gl/field');
+    hasGL = mod.webglAvailable();
+  }
+
+  if (!hasGL) {
+    root.classList.remove('gl');
+    root.classList.add('no-gl');
+  } else {
+    try {
+      field = new mod!.PointField(canvas!, reduced);
+    } catch {
+      field = null;
+      root.classList.remove('gl');
+      root.classList.add('no-gl');
+    }
+  }
+
+  // smooth scroll shares the GSAP ticker; native scrolling when motion is reduced
+  let lenis: Lenis | null = null;
+  if (!reduced) {
+    lenis = new Lenis({ autoRaf: false, lerp: 0.1, wheelMultiplier: 0.95 });
+    lenis.on('scroll', ScrollTrigger.update);
+    gsap.ticker.lagSmoothing(0);
+    initWidthAxis(lenis);
+  }
+  gsap.ticker.add((time, dt) => {
+    lenis?.raf(time * 1000);
+    field?.tick(dt);
+  });
+
+  initTheme((t) => field?.setTheme(t));
+
+  const ctx = { field, lenis, reduced };
+  const router = new Router(ctx);
+  router.start();
+
+  if (field) {
+    // wait (briefly) for the display font so the wordmark is sampled from the real glyphs
+    const fontReady = Promise.race([
+      document.fonts.load('800 120px Anybody').catch(() => undefined),
+      new Promise((r) => setTimeout(r, 1600)),
+    ]);
+    await fontReady;
+    await field.build('Anybody, "Arial Black", sans-serif');
+    const first: Target = readTarget(document.getElementById('main')!);
+    const tl = field.intro(first);
+    if (!reduced) {
+      // skippable: any scroll, click, touch or key finishes the intro quickly
+      const skip = () => { tl.timeScale(9); cleanup(); };
+      const evs = ['wheel', 'pointerdown', 'keydown', 'touchstart'] as const;
+      const cleanup = () => evs.forEach((e) => window.removeEventListener(e, skip));
+      evs.forEach((e) => window.addEventListener(e, skip, { passive: true, once: true }));
+      tl.eventCallback('onComplete', cleanup);
+    }
+    // re-resolve the section under the viewport after the intro (handles reloads mid-page)
+    ScrollTrigger.refresh();
+    root.classList.add('gl-ready');
+  }
+  root.classList.add('is-ready');
+}
+
+// Let the first paint (the real HTML text) happen before any WebGL work starts.
+const start = () => (window.requestIdleCallback ? window.requestIdleCallback(() => void boot(), { timeout: 1500 }) : setTimeout(() => void boot(), 300));
+if (document.readyState === 'complete') start(); else window.addEventListener('load', start, { once: true });

@@ -1,4 +1,8 @@
-Mohammed Shadab_230953262.pdf
-extract_resume.py
+node_modules
+dist
+.lighthouse
 .DS_Store
 Thumbs.db
+# source resumes (the published copy is public/resume.pdf, with the phone number removed)
+Mohammed Shadab*.pdf
+extract_resume.py

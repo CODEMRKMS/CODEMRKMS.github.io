@@ -1,0 +1,46 @@
+.cta {
+  display: inline-block; font-weight: 500; padding-bottom: 3px; border-bottom: 1px solid var(--accent);
+  transition: color 0.2s;
+}
+.cta:hover { color: var(--accent); }
+
+.btn {
+  background: var(--accent); color: var(--on-accent); border: 0; border-radius: 999px; padding: 11px 26px;
+  font-weight: 600; cursor: pointer; transition: transform 0.2s;
+}
+.btn[aria-pressed='true'] { background: transparent; color: var(--fg); box-shadow: inset 0 0 0 1.5px var(--accent); }
+
+.figs { display: flex; flex-wrap: wrap; gap: 26px 44px; margin-top: 2rem !important; }
+.fig { border-top: 1px solid var(--rule); padding-top: 12px; min-width: 7.5rem; max-width: 14rem; }
+.fig-n { font-family: var(--f-display); font-weight: 720; font-variation-settings: 'wdth' 100; font-size: var(--t-3); line-height: 1.1; letter-spacing: -0.01em; white-space: nowrap; }
+.fig dd { color: var(--fg-2); font-size: 0.9rem; line-height: 1.4; margin-top: 4px; }
+
+.steps { margin-top: 2rem !important; }
+.steps li { border-top: 1px solid var(--rule); padding: 20px 0 22px; }
+.steps li + li { margin-top: 0 !important; }
+.steps h3 { font-size: var(--t-1); font-weight: 600; line-height: 1.25; margin-bottom: 0.4rem; letter-spacing: -0.005em; }
+.steps p { max-width: 60ch; color: var(--fg); }
+.steps code { color: var(--fg); }
+
+.bullets { margin-top: 1.6rem !important; }
+.bullets li { border-top: 1px solid var(--rule); padding: 15px 0; max-width: 60ch; }
+.bullets li + li { margin-top: 0 !important; }
+
+.mail {
+  font-family: var(--f-display); font-weight: 700; font-variation-settings: 'wdth' 94; letter-spacing: -0.01em;
+  font-size: clamp(1.45rem, 3.1vw, 2.7rem); line-height: 1.15; white-space: nowrap;
+  border-bottom: 2px solid var(--accent); display: inline-block; transition: color 0.2s;
+}
+.mail:hover { color: var(--accent); }
+.plain { display: flex; flex-wrap: wrap; gap: 8px 30px; margin-top: 1.8rem !important; }
+.plain.tight { display: grid; gap: 10px; margin-top: 0 !important; }
+.plain a { border-bottom: 1px solid var(--rule); transition: border-color 0.2s, color 0.2s; }
+.plain a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* page change: while a transition runs, nothing else should react */
+.is-transitioning { cursor: progress; }
+.is-transitioning a { pointer-events: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+}

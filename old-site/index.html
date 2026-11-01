@@ -19,14 +19,15 @@
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
   <!-- CSS -->
-  <link rel="stylesheet" href="css/index.css">
-  <link rel="stylesheet" href="css/hero.css">
-  <link rel="stylesheet" href="css/nav.css">
-  <link rel="stylesheet" href="css/about.css">
-  <link rel="stylesheet" href="css/projects.css">
-  <link rel="stylesheet" href="css/experience.css">
-  <link rel="stylesheet" href="css/awards.css">
-  <link rel="stylesheet" href="css/contact.css">
+  <link rel="stylesheet" href="css/index.css?v=4">
+  <link rel="stylesheet" href="css/hero.css?v=4">
+  <link rel="stylesheet" href="css/nav.css?v=4">
+  <link rel="stylesheet" href="css/about.css?v=4">
+  <link rel="stylesheet" href="css/projects.css?v=4">
+  <link rel="stylesheet" href="css/experience.css?v=4">
+  <link rel="stylesheet" href="css/awards.css?v=4">
+  <link rel="stylesheet" href="css/testimonials.css?v=4">
+  <link rel="stylesheet" href="css/contact.css?v=4">
 </head>
 <body>
 
@@ -55,6 +56,7 @@
         <a href="#projects" class="nav-item" data-text="// PROJECTS">// PROJECTS</a>
         <a href="#experience" class="nav-item" data-text="// EXPERIENCE">// EXPERIENCE</a>
         <a href="#awards" class="nav-item" data-text="// AWARDS">// AWARDS</a>
+        <a href="#testimonials" class="nav-item" data-text="// TESTIMONIALS">// TESTIMONIALS</a>
         <a href="#contact" class="nav-item" data-text="// CONTACT">// CONTACT</a>
       </div>
       <div class="nav-satellite"></div>
@@ -289,61 +291,75 @@
   <!-- ============================
        SCENE 4 — EXPERIENCE
        ============================ -->
-  <section id="experience" class="section">
-    <div class="section-inner">
+  <section id="experience">
+    <canvas id="exp-canvas"></canvas>
+
+    <!-- Header -->
+    <div class="exp-header">
       <span class="section-tag">// EXPERIENCE</span>
       <h2 class="section-title">Experience</h2>
-
-      <div class="timeline">
-
-        <!-- Volvo Group -->
-        <div class="timeline-entry">
-          <div class="timeline-dot"></div>
-          <div class="mission-card">
-            <div class="mission-label">LATEST</div>
-            <div class="mission-role">Software Engineering Intern</div>
-            <div class="mission-org">Volvo Group, Bengaluru</div>
-            <div class="mission-duration">2026</div>
-            <ul class="mission-bullets">
-              <li>Spearheaded a continuous cross-verification pipeline using RPA and Azure Pipelines to automate differential testing during the legacy-to-modern GLOPPS architectural migration.</li>
-              <li>Built a machine learning-driven test case generator and self-healing patcher, automating fault localization and discrepancy resolution to reduce manual QA overhead.</li>
-              <li>Configured automated discrepancy reporting and telemetry alerts to accelerate developer triaging and issue resolution.</li>
-            </ul>
-          </div>
-        </div>
-
-        <!-- MadTales.AI -->
-        <div class="timeline-entry">
-          <div class="timeline-dot"></div>
-          <div class="mission-card">
-            <div class="mission-label">AI/ML</div>
-            <div class="mission-role">AI/ML Intern</div>
-            <div class="mission-org">MadTales.AI, Manipal</div>
-            <div class="mission-duration">2025</div>
-            <ul class="mission-bullets">
-              <li>Devised and deployed a CNN-based pipeline for mechanized PDF line classification (Keep / Remove / Review), streamlining document preprocessing.</li>
-              <li>Delivered mobile deployment via Flutter with TensorFlow Lite, tokenizer migration, and real-time classification UI; explored hybrid CNN-Transformer models for enhanced semantic precision.</li>
-            </ul>
-          </div>
-        </div>
-
-        <!-- Astronomy Club -->
-        <div class="timeline-entry">
-          <div class="timeline-dot"></div>
-          <div class="mission-card">
-            <div class="mission-label">LEADERSHIP</div>
-            <div class="mission-role">Treasurer</div>
-            <div class="mission-org">Astronomy Club, Manipal</div>
-            <div class="mission-duration">2025 – 2026</div>
-            <ul class="mission-bullets">
-              <li>Administered a budget exceeding ₹50,000, securing sponsorships and optimizing allocations to support 15+ academic and outreach events.</li>
-              <li>Supervised logistics and finances for workshops, lectures, and stargazing sessions (100–500 attendees), driving engagement growth of 25%.</li>
-            </ul>
-          </div>
-        </div>
-
-      </div>
     </div>
+
+    <!-- Experience Cards -->
+    <div class="exp-cards">
+
+      <!-- Volvo Group -->
+      <div class="exp-card" data-idx="0">
+        <div class="exp-label" data-type="latest">LATEST</div>
+        <div class="exp-role">Software Engineering Intern</div>
+        <div class="exp-org">Volvo Group, Bengaluru</div>
+        <div class="exp-duration">2026</div>
+        <ul class="exp-bullets">
+          <li>Spearheaded a continuous cross-verification pipeline using RPA and Azure Pipelines to automate differential testing during the legacy-to-modern GLOPPS architectural migration.</li>
+          <li>Built a machine learning-driven test case generator and self-healing patcher, automating fault localization and discrepancy resolution to reduce manual QA overhead.</li>
+          <li>Configured automated discrepancy reporting and telemetry alerts to accelerate developer triaging and issue resolution.</li>
+        </ul>
+      </div>
+
+      <!-- MadTales.AI -->
+      <div class="exp-card" data-idx="1">
+        <div class="exp-label" data-type="aiml">AI/ML</div>
+        <div class="exp-role">AI/ML Intern</div>
+        <div class="exp-org">MadTales.AI, Manipal</div>
+        <div class="exp-duration">2025</div>
+        <ul class="exp-bullets">
+          <li>Devised and deployed a CNN-based pipeline for mechanized PDF line classification (Keep / Remove / Review), streamlining document preprocessing.</li>
+          <li>Delivered mobile deployment via Flutter with TensorFlow Lite, tokenizer migration, and real-time classification UI; explored hybrid CNN-Transformer models for enhanced semantic precision.</li>
+        </ul>
+      </div>
+
+      <!-- Astronomy Club -->
+      <div class="exp-card" data-idx="2">
+        <div class="exp-label" data-type="leadership">LEADERSHIP</div>
+        <div class="exp-role">Treasurer</div>
+        <div class="exp-org">Astronomy Club, Manipal</div>
+        <div class="exp-duration">2025 – 2026</div>
+        <ul class="exp-bullets">
+          <li>Administered a budget exceeding ₹50,000, securing sponsorships and optimizing allocations to support 15+ academic and outreach events.</li>
+          <li>Supervised logistics and finances for workshops, lectures, and stargazing sessions (100–500 attendees), driving engagement growth of 25%.</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <!-- Step Dots -->
+    <div class="exp-nav">
+      <div class="exp-dot active"></div>
+      <div class="exp-dot"></div>
+      <div class="exp-dot"></div>
+    </div>
+
+    <!-- Zone Label (left side) -->
+    <div class="exp-zone">
+      <div class="exp-zone-name">VOLVO GROUP</div>
+    </div>
+
+    <!-- Depth HUD -->
+    <div class="exp-depth">
+      <div class="exp-depth-label">DEPTH 100 AU</div>
+      <div class="exp-depth-bar"><div class="exp-depth-fill" id="exp-depth-fill"></div></div>
+    </div>
+
   </section>
 
   <!-- ============================
@@ -394,6 +410,46 @@
 
       </div>
       <canvas class="confetti-canvas"></canvas>
+    </div>
+  </section>
+
+  <!-- ============================
+       SCENE 5.5 — TESTIMONIALS
+       ============================ -->
+  <section id="testimonials" class="section">
+    <div class="section-inner">
+      <span class="section-tag">// TESTIMONIALS</span>
+      <h2 class="section-title">What They Say</h2>
+
+      <div class="testimonials-stage">
+        <div class="testimonial-card">
+          <div class="testimonial-shimmer"></div>
+          <div class="testimonial-particle"></div>
+          <div class="testimonial-particle"></div>
+          <div class="testimonial-particle"></div>
+
+          <span class="testimonial-quote-mark">&ldquo;</span>
+
+          <a href="https://www.linkedin.com/in/mohammed-shadab-mit/" target="_blank" rel="noopener" class="testimonial-linkedin">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+            LinkedIn
+          </a>
+
+          <p class="testimonial-text">It was a pleasure working with Mohammed Shadab during his Internship with our team at Volvo. He was eager to learn, quick to adapt, and brought a lively, jovial energy that made him a joy to work with. He collaborated well with the team, was always open to feedback, and made meaningful contributions throughout his internship. I'm confident he has a bright future ahead and wish him all the very best in his career.</p>
+
+          <div class="testimonial-divider"></div>
+
+          <div class="testimonial-author">
+            <div class="testimonial-avatar">MP</div>
+            <div class="testimonial-info">
+              <div class="testimonial-name">Mehjabeen Parveez</div>
+              <div class="testimonial-role">Delivery Manager — Volvo Group Digital & IT, Service Market Logistics</div>
+              <div class="testimonial-relationship">Mentor at Volvo Group</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </section>
 
@@ -492,16 +548,17 @@
   <script src="https://cdn.jsdelivr.net/npm/vanilla-tilt@1.8.1/dist/vanilla-tilt.min.js"></script>
 
   <!-- App Scripts -->
-  <script src="js/particles.js"></script>
-  <script src="js/cursor.js"></script>
-  <script src="js/hero.js"></script>
-  <script src="js/nav.js"></script>
-  <script src="js/about.js"></script>
-  <script src="js/projects.js"></script>
-  <script src="js/experience.js"></script>
-  <script src="js/awards.js"></script>
-  <script src="js/contact.js"></script>
-  <script src="js/main.js"></script>
+  <script src="js/particles.js?v=2"></script>
+  <script src="js/cursor.js?v=2"></script>
+  <script src="js/hero.js?v=2"></script>
+  <script src="js/nav.js?v=2"></script>
+  <script src="js/about.js?v=2"></script>
+  <script src="js/projects.js?v=2"></script>
+  <script src="js/experience.js?v=2"></script>
+  <script src="js/awards.js?v=2"></script>
+  <script src="js/testimonials.js?v=2"></script>
+  <script src="js/contact.js?v=2"></script>
+  <script src="js/main.js?v=2"></script>
 
 </body>
 </html>

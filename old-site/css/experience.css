@@ -1,0 +1,310 @@
+/* ============================================
+   SCENE 4 — EXPERIENCE (3D Scroll-Zoom Flythrough)
+   ============================================ */
+
+/* Section is tall — each experience = 100vh of scroll */
+#experience {
+  position: relative;
+  height: 400vh; /* 100vh per experience + 100vh buffer */
+  overflow: visible;
+  background: var(--void);
+}
+
+/* Three.js canvas — sticks to viewport during section scroll */
+#exp-canvas {
+  position: sticky;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  z-index: 1;
+  display: block;
+}
+
+/* Header overlay */
+.exp-header {
+  position: fixed;
+  top: clamp(80px, 10vh, 120px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  text-align: center;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+}
+
+/* Experience cards — fixed center overlay */
+.exp-cards {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.exp-card {
+  position: absolute;
+  width: min(600px, 85vw);
+  background: rgba(10, 10, 18, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(108, 99, 255, 0.2);
+  border-radius: 24px;
+  padding: 40px 36px;
+  opacity: 0;
+  transform: translateY(40px) scale(0.95);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.5s ease, box-shadow 0.5s ease;
+  pointer-events: none;
+}
+
+.exp-card.active {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+  box-shadow:
+    0 0 0 1px rgba(108, 99, 255, 0.15),
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    0 0 40px rgba(108, 99, 255, 0.08);
+}
+
+/* Card label badge */
+.exp-label {
+  display: inline-block;
+  padding: 4px 14px;
+  font-family: var(--font-display);
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  border-radius: 50px;
+  margin-bottom: 16px;
+}
+
+.exp-label[data-type="latest"] {
+  color: var(--cyan);
+  border: 1px solid var(--cyan-dim);
+  background: rgba(0, 245, 255, 0.06);
+}
+
+.exp-label[data-type="aiml"] {
+  color: var(--indigo);
+  border: 1px solid var(--indigo-dim);
+  background: rgba(108, 99, 255, 0.06);
+}
+
+.exp-label[data-type="leadership"] {
+  color: var(--amber);
+  border: 1px solid var(--amber-dim);
+  background: rgba(255, 184, 48, 0.06);
+}
+
+/* Card title */
+.exp-role {
+  font-family: var(--font-display);
+  font-size: clamp(1rem, 2.5vw, 1.4rem);
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ghost);
+  margin-bottom: 4px;
+}
+
+.exp-org {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--indigo);
+  margin-bottom: 4px;
+  text-shadow: 0 0 10px var(--indigo-dim);
+}
+
+.exp-duration {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--ghost-muted);
+  margin-bottom: 20px;
+  letter-spacing: 1px;
+}
+
+/* Bullet points */
+.exp-bullets {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.exp-bullets li {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.7;
+  color: var(--ghost-dim);
+  padding-left: 20px;
+  position: relative;
+  margin-bottom: 10px;
+}
+
+.exp-bullets li::before {
+  content: '▹';
+  position: absolute;
+  left: 0;
+  color: var(--indigo);
+  font-size: 0.85rem;
+}
+
+/* Step indicator dots — right side */
+.exp-nav {
+  position: fixed;
+  right: clamp(20px, 3vw, 40px);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+}
+
+.exp-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(108, 99, 255, 0.3);
+  background: transparent;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+.exp-dot.active {
+  background: var(--indigo);
+  border-color: var(--indigo);
+  box-shadow: 0 0 12px var(--indigo-dim);
+  transform: scale(1.3);
+}
+
+/* Connecting line between dots */
+.exp-nav::before {
+  content: '';
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1px;
+  background: rgba(108, 99, 255, 0.12);
+  z-index: -1;
+}
+
+/* Zone name label (left side) */
+.exp-zone {
+  position: fixed;
+  left: clamp(20px, 4vw, 50px);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+}
+
+.exp-zone-name {
+  font-family: var(--font-display);
+  font-size: clamp(0.8rem, 2vw, 1.2rem);
+  font-weight: 800;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: rgba(108, 99, 255, 0.25);
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transition: color 0.5s ease;
+}
+
+.exp-zone-name.active {
+  color: rgba(108, 99, 255, 0.5);
+}
+
+/* Depth counter (bottom right) */
+.exp-depth {
+  position: fixed;
+  bottom: 28px;
+  right: clamp(20px, 4vw, 50px);
+  z-index: 10;
+  pointer-events: none;
+  text-align: right;
+  transition: opacity 0.5s ease;
+}
+
+.exp-depth-label {
+  font-family: var(--font-display);
+  font-size: 0.55rem;
+  letter-spacing: 3px;
+  color: rgba(200, 200, 255, 0.25);
+}
+
+.exp-depth-bar {
+  width: 100px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 2px;
+  margin-top: 6px;
+  margin-left: auto;
+  overflow: hidden;
+}
+
+.exp-depth-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--indigo), var(--cyan));
+  border-radius: 2px;
+  transition: width 0.2s ease;
+  box-shadow: 0 0 6px rgba(108, 99, 255, 0.3);
+}
+
+/* ============================================
+   MOBILE — Fallback to simple timeline
+   ============================================ */
+@media (max-width: 768px) {
+  #experience {
+    height: auto;
+    padding: 80px 0;
+  }
+
+  #exp-canvas { display: none; }
+
+  .exp-header {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    margin-bottom: 40px;
+  }
+
+  .exp-cards {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: auto;
+    height: auto;
+    flex-direction: column;
+    gap: 24px;
+    padding: 0 clamp(16px, 4vw, 40px);
+  }
+
+  .exp-card {
+    position: relative;
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  }
+
+  .exp-nav,
+  .exp-zone,
+  .exp-depth {
+    display: none !important;
+  }
+}
