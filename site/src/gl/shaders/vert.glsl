@@ -11,6 +11,8 @@ uniform vec3 uFocus;               // what the camera is looking at (centre of t
 uniform vec4 uPointer;  // view-space xy per unit depth, strength, radius
 uniform vec4 uTextMask; // side (-1 left, 0 none, 1 right), edge (ndc), softness, strength
 uniform vec3 uC0, uC1, uC2, uNeutral;
+uniform vec2 uBands[3];  // rows of the screen that copy covers (ndc y: top, bottom)
+uniform float uBandK;
 
 attribute vec4 aA, aA2, aB, aB2, aSeed;
 
@@ -181,6 +183,16 @@ vec3 form(float id, vec4 P, vec4 E, vec4 S) {
   return p;
 }
 
+// 1 inside a row of copy, 0 in the clear, with a soft edge
+float inBands(float y) {
+  float m = 0.;
+  for (int i = 0; i < 3; i++) {
+    vec2 b = uBands[i];
+    m = max(m, (1. - smoothstep(b.x - .01, b.x + .07, y)) * smoothstep(b.y - .07, b.y + .01, y));
+  }
+  return m;
+}
+
 vec3 place(vec3 p, vec3 lay, vec3 st) { return p * lay.x + vec3(lay.yz, 0.) + st; }
 
 void main() {
@@ -236,7 +248,7 @@ void main() {
           : (uTextMask.x > .5 ? smoothstep(uTextMask.y - uTextMask.z, uTextMask.y + uTextMask.z, nx) : 0.);
   // depth fade: nothing pops at the lens, and far stations sink into the dark
   float depth = smoothstep(.5, 2.4, -mv.z) * (1. - smoothstep(24., 42., -mv.z));
-  alpha *= (1. - uTextMask.w * m) * (1. - uDim) * uIntro * uAlphaMul * depth;
+  alpha *= (1. - uTextMask.w * m) * (1. - uDim) * (1. - uBandK * inBands(gl_Position.y / gl_Position.w)) * uIntro * uAlphaMul * depth;
 
   gl_PointSize = min(uSize * uPR * uDens * size * 8. / max(-mv.z, .1), 16. * uPR);
   vColor = col;

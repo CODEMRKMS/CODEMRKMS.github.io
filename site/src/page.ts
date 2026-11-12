@@ -120,6 +120,38 @@ export function initPage(main: HTMLElement, ctx: Ctx, opts: { first: boolean }):
       );
     });
     field.setSection(0);
+
+    // stacked layouts: tell the field which rows of the screen hold copy, so the form is only drawn in the clear above it
+    const blocks = Array.from(main.children) as HTMLElement[];
+    let lastY = -1, lastN = false, age = 0;
+    const bands = () => {
+      const narrow = field.narrow, y = window.scrollY;
+      if (narrow === lastN && y === lastY && age++ < 20) return;
+      lastN = narrow; lastY = y; age = 0;
+      if (!narrow) { field.setBands([]); return; }
+      const vh = window.innerHeight, rows: [number, number][] = [];
+      for (const sec of blocks) {
+        const sr = sec.getBoundingClientRect();
+        if (sr.bottom < 0 || sr.top > vh) continue;
+        for (const el of Array.from(sec.children)) {
+          const r = el.getBoundingClientRect();
+          if (r.height < 4 || r.bottom < 0 || r.top > vh) continue;
+          rows.push([r.top - 8, r.bottom + 8]);
+        }
+      }
+      rows.sort((a, b) => a[0] - b[0]);
+      const merged: [number, number][] = [];
+      for (const r of rows) {
+        const m = merged[merged.length - 1];
+        if (m && r[0] - m[1] < 56) m[1] = Math.max(m[1], r[1]); else merged.push([r[0], r[1]]);
+      }
+      // at most three rows reach the shader; if there are more, the gaps between the last ones close
+      while (merged.length > 3) { const b = merged.pop()!; merged[merged.length - 1][1] = b[1]; }
+      field.setBands(merged.flat());
+    };
+    bands();
+    gsap.ticker.add(bands);
+    cleanups.push(() => gsap.ticker.remove(bands));
   }
 
   /* ----- award labels sit on their stars (desktop only; on phones the list just flows) ----- */

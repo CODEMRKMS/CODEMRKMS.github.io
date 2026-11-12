@@ -65,8 +65,11 @@ html.gl .hero-name { position: absolute; width: 1px; height: 1px; margin: -1px; 
 
 @media (max-width: 899px) {
   .sec { align-items: flex-end; min-height: 88svh; padding-block: 72px 56px; }
+  /* stacked: every section that owns a form keeps the top of the screen free for it; the copy starts below */
+  html.gl .sec[data-form]:not(.tall):not(.awards):not([data-form='stars']) { padding-top: 50svh; }
+  html.gl .hero.project-hero:not(.about-hero) { padding-top: 54svh; }
   .sec.tall { align-items: flex-start; min-height: 200svh; }
-  .sec.tall .col-text { top: 46svh; }
+  .sec.tall .col-text { top: 50svh; }
   .col-end { margin-left: 0; }
 }
 

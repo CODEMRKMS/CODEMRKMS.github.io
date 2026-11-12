@@ -10,6 +10,7 @@ import {
   Points,
   Scene,
   ShaderMaterial,
+  Vector2,
   Vector3,
   Vector4,
   WebGLRenderer,
@@ -23,7 +24,7 @@ import { CAM_Z, buildScenery, placeStations, type Kind, type Station } from './r
 
 export type { Kind, Station };
 interface Layout { s: number; x: number; y: number }
-interface Mask { side: number; edge: number; soft: number; k: number; dim: number }
+interface Mask { side: number; edge: number; soft: number; k: number; dim: number; band: number }
 /** a station resolved for the current viewport */
 interface Stop { form: number; name: FormName; kind: Kind; w: Vector3; cam: Vector3; lay: Layout; mask: Mask; lateral: boolean }
 
@@ -137,6 +138,8 @@ export class PointField {
     const shared = {
       uTime: { value: 0 }, uPR: { value: this.dpr }, uSize: { value: 2.3 }, uIntro: { value: 0 }, uAlphaMul: { value: 1 },
       uC0: { value: new Color() }, uC1: { value: new Color() }, uC2: { value: new Color() }, uNeutral: { value: new Color() },
+      // narrow screens: the rows (ndc y: top, bottom) that copy occupies right now, and how hard points fade inside them
+      uBands: { value: [new Vector2(-9, -9), new Vector2(-9, -9), new Vector2(-9, -9)] }, uBandK: { value: 0 },
     };
     this.mat = new ShaderMaterial({
       vertexShader: vert,
@@ -242,6 +245,20 @@ export class PointField {
 
   /* ---------- layout of a form inside its station ---------- */
   private get aspect() { return (this.sizeW || window.innerWidth) / Math.max(1, this.sizeH || window.innerHeight); }
+  /** side-by-side layout (form beside the copy). Matches the CSS breakpoint, so a small landscape window stacks too. */
+  private get wide() { return this.aspect > 1.05 && (this.sizeW || window.innerWidth) >= 900; }
+  /** stacked layout: the form sits in the space above its copy and is masked by the copy's position */
+  get narrow() { return !this.wide; }
+  /** viewport rows (css px, top/bottom pairs, at most three) that copy covers right now. Only used on narrow screens. */
+  setBands(px: number[]) {
+    const B = this.mat.uniforms.uBands.value as Vector2[];
+    const h = Math.max(1, this.sizeH);
+    for (let i = 0; i < 3; i++) {
+      const has = i * 2 + 1 < px.length;
+      const top = has ? 1 - (2 * px[i * 2]) / h : -9, bot = has ? 1 - (2 * px[i * 2 + 1]) / h : -9;
+      if (Math.abs(B[i].x - top) > 1e-4 || Math.abs(B[i].y - bot) > 1e-4) { B[i].set(top, bot); this.dirty = true; }
+    }
+  }
   private layoutFor(form: FormName, kind: Kind): Layout {
     const aspect = this.aspect;
     const viewH = 2 * CAM_Z * Math.tan((FOV * Math.PI) / 360);
@@ -249,10 +266,10 @@ export class PointField {
     const cw = this.sizeW || window.innerWidth;
     if (form === 'stars') {
       const s = Math.min(1.15, Math.max(0.45, viewW / 9.5));
-      return kind === 'hero' && aspect > 1.05 ? { s: s * 0.9, x: 0, y: -viewH * 0.1 } : { s, x: 0, y: 0 };
+      return kind === 'hero' && this.wide ? { s: s * 0.9, x: 0, y: -viewH * 0.1 } : { s, x: 0, y: 0 };
     }
     const [w, h] = SIZE[form];
-    const wide = aspect > 1.05;
+    const wide = this.wide;
     if (form === 'name') {
       const s = wide ? Math.min((viewW * 0.72) / w, (viewH * 0.55) / h) : (viewW * 0.9) / w;
       const padPx = Math.min(64, Math.max(20, cw * 0.04));
@@ -260,8 +277,9 @@ export class PointField {
       return { s, x: left + (w * s) / 2, y: wide ? viewH * 0.12 : viewH * 0.17 };
     }
     if (!wide) {
-      const s = Math.min((viewW * 0.95) / w, (viewH * (kind === 'hero' ? 0.5 : 0.42)) / h);
-      return { s, x: 0, y: kind === 'hero' ? viewH * 0.14 : viewH * 0.12 };
+      // stacked: the form lives in the upper part of the screen, in the space the section keeps free above its copy
+      const s = Math.min((viewW * 0.95) / w, (viewH * (kind === 'hero' ? 0.36 : 0.32)) / h);
+      return { s, x: 0, y: kind === 'hero' ? viewH * 0.17 : viewH * 0.185 };
     }
     if (kind === 'hero') {
       const s = Math.min((viewW * 0.78) / w, (viewH * 0.6) / h);
@@ -277,14 +295,15 @@ export class PointField {
     return { s, x: (kind === 'right' ? 1 : -1) * off, y: 0 };
   }
   private maskFor(form: FormName, kind: Kind): Mask {
-    const wide = this.aspect > 1.05;
+    const wide = this.wide;
+    // on narrow screens points fade out wherever a block of copy is (uBands), so no line ever crosses text
+    const band = wide ? 0 : form === 'stars' ? 0.55 : 0.95;
     // the star field sits behind long reading sections: keep it quiet there
-    if (form === 'stars' && kind === 'center') return { side: 0, edge: 0, soft: 0.1, k: 0, dim: 0.45 };
-    // on narrow screens the form sits behind the copy: the bright line-drawn pieces are dimmed harder so text stays readable
-    if (!wide) return { side: 0, edge: 0, soft: 0.1, k: 0, dim: kind === 'hero' || form === 'name' ? 0 : form === 'face' || form === 'candles' ? 0.74 : 0.5 };
-    if (kind === 'right') return { side: -1, edge: 0.04, soft: 0.13, k: 0.9, dim: 0 };
-    if (kind === 'left') return { side: 1, edge: -0.04, soft: 0.13, k: 0.9, dim: 0 };
-    return { side: 0, edge: 0, soft: 0.1, k: 0, dim: 0 };
+    if (form === 'stars' && kind === 'center') return { side: 0, edge: 0, soft: 0.1, k: 0, dim: 0.45, band };
+    if (!wide) return { side: 0, edge: 0, soft: 0.1, k: 0, dim: 0, band };
+    if (kind === 'right') return { side: -1, edge: 0.04, soft: 0.13, k: 0.9, dim: 0, band };
+    if (kind === 'left') return { side: 1, edge: -0.04, soft: 0.13, k: 0.9, dim: 0, band };
+    return { side: 0, edge: 0, soft: 0.1, k: 0, dim: 0, band };
   }
 
   /* ---------- the route ---------- */
@@ -315,7 +334,7 @@ export class PointField {
       // under a page hero the copy sits bottom-left, so the year goes to the right of it
       formX: this.stops.map((s) => (s.kind === 'hero' ? 2 * CAM_Z * Math.tan((FOV * Math.PI) / 360) * this.aspect * 0.3 : s.lay.x)),
       dust: mobile ? 900 : 2600,
-      wide: this.aspect > 1.05,
+      wide: this.wide,
       label: (t) => sampleText(t, this.font),
     });
     this.sceneryGeo.dispose();
@@ -421,7 +440,7 @@ export class PointField {
     // the canvas is sized in CSS to the large viewport, so a phone's address bar sliding away is not a resize
     const w = this.canvas.clientWidth || window.innerWidth, h = this.canvas.clientHeight || window.innerHeight;
     if (w === this.sizeW && h === this.sizeH) return;
-    const wasWide = this.aspect > 1.05;
+    const wasWide = this.wide;
     this.sizeW = w; this.sizeH = h;
     this.renderer.setPixelRatio(this.dpr);
     this.renderer.setSize(w, h, false);
@@ -430,7 +449,7 @@ export class PointField {
     this.mat.uniforms.uPR.value = this.dpr;
     // keep every station's layout valid for the new aspect
     for (const s of this.stops) { s.lay = this.layoutFor(s.name, s.kind); s.mask = this.maskFor(s.name, s.kind); }
-    if (wasWide !== this.aspect > 1.05) this.rebuildScenery();
+    if (wasWide !== this.wide) this.rebuildScenery();
     this.dirty = true;
   }
 
@@ -472,6 +491,7 @@ export class PointField {
     const m = smooth(t);
     (U.uTextMask.value as Vector4).set(lerp(A.mask.side, B.mask.side, m), lerp(A.mask.edge, B.mask.edge, m), lerp(A.mask.soft, B.mask.soft, m), lerp(A.mask.k, B.mask.k, m));
     U.uDim.value = lerp(A.mask.dim, B.mask.dim, m);
+    U.uBandK.value = lerp(A.mask.band, B.mask.band, m);
 
     // camera: ease between the two rest poses, bowing off the straight line so the route reads as a curve
     const e = smoother(t), arc = Math.sin(Math.PI * e);

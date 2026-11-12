@@ -32,16 +32,19 @@ in this file; `PLAN.md`, `DESIGN.md` and `REVIEW.md` still describe v1 and have 
 
 **Fixes after the face review**
 - Head turn is clamped to about 25 degrees including the fixed quarter turn; the irises take the rest of the tracking.
-- On narrow viewports the face and candles are dimmed harder behind body copy (`maskFor` in `field.ts`).
 - The quant-trading case study line now reads "Scroll fast and the candles turn volatile."
 
+**Item 1 (second session): phone readability**
+- Stacked layouts (under 900 px wide, or portrait) keep the top half of the screen free: `.sec[data-form]` gets
+  `padding-top: 50svh`, project heroes 54svh, and `layoutFor` puts the form in that space.
+- `page.ts` measures which rows of the viewport hold copy and sends up to three bands to both vertex shaders
+  (`uBands`, `uBandK`); points fade out inside them, so no line crosses text in either theme. Body copy sits on the
+  bare background colour (fg-2 on bg is 7.6:1 in Daylight, 8:1 at night).
+- The form/copy side-by-side layout now needs 900 px as well as a landscape aspect, matching the CSS breakpoint.
+
 ## Known issues
-- **Phone readability is improved, not solved.** At 375 px the face and candles still sit behind the body copy.
-  Night is acceptable; in Daylight the dark lines still cross the text. Needs a layout answer (move the form above
-  the copy or mask by text rect), not just more dimming.
 - Daylight still uses the v1 instant palette swap (no sun arc, no premultiplied blend). That is Step 2 work.
 - `adapt()` in `field.ts` still only steps quality down. `gl/quality.ts` in 1d replaces it.
-- Year labels and the timeline line can sit behind copy on narrow screens (they are dimmed, not moved).
 - No 404 page yet. `old-site/` is dead code still in the repo.
 - A `vite preview` process from this session may still be listening on port 4173.
 
