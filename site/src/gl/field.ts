@@ -18,7 +18,7 @@ import gsap from 'gsap';
 import vert from './shaders/vert.glsl?raw';
 import frag from './shaders/frag.glsl?raw';
 import sceneryVert from './shaders/scenery.vert.glsl?raw';
-import { AWARD_STARS, FORM, FORM_COUNT, STRIDE, genSeeds, genWordmark, mulberry32, buildShapes, sampleText, type FormName } from './shapes';
+import { AWARD_STARS, EYE_X, EYE_Y, EYE_Z, FORM, FORM_COUNT, STRIDE, genSeeds, genWordmark, mulberry32, buildShapes, sampleText, type FormName } from './shapes';
 import { CAM_Z, buildScenery, placeStations, type Kind, type Station } from './rail';
 
 export type { Kind, Station };
@@ -29,7 +29,7 @@ interface Stop { form: number; name: FormName; kind: Kind; w: Vector3; cam: Vect
 
 const FOV = 38;
 const SIZE: Record<FormName, readonly [number, number]> = {
-  stars: [8, 4.6], name: [6, 2.5], gaze: [6.3, 3.6], terrain: [6.4, 3.9], voice: [4.6, 4.2], pipeline: [7.2, 3.5], docs: [5.6, 4.3], pulse: [3.4, 3.4],
+  stars: [8, 4.6], name: [6, 2.5], face: [5.2, 4.0], candles: [6.4, 4.4], voice: [4.6, 4.2], pipeline: [7.2, 3.5], docs: [5.6, 4.3], pulse: [3.4, 3.4],
 };
 
 const PALETTE = {
@@ -57,6 +57,9 @@ export function pointBudget(): number {
   const low = cores <= 4 || mem <= 4;
   let n = mobile ? 12000 : 40000;
   if (low) n = Math.min(n, mobile ? 9000 : 22000);
+  // ?n=12000 forces a point count, for checking how a form reads on a small budget
+  const q = /[?&]n=(\d+)/.exec(location.search);
+  if (q) n = Math.max(2000, Math.min(60000, Number(q[1])));
   return n;
 }
 
@@ -106,6 +109,10 @@ export class PointField {
   private beatRate = 0.55;
   beatFast = false;
   private micLevel = 0;
+  private velRaw = 0;
+  private vel = 0;
+  private vol = 0;
+  private gazeOn = 0;
   private adaptive = !/[?&]noadapt/.test(location.search);
   private tmp = new Vector3();
   theme: 'night' | 'day' = 'night';
@@ -120,7 +127,7 @@ export class PointField {
       const gl = this.renderer.getContext();
       const ext = gl.getExtension('WEBGL_debug_renderer_info');
       const name = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : '';
-      if (/swiftshader|llvmpipe|software/i.test(name) && !/[?&]noadapt/.test(location.search)) {
+      if (/swiftshader|llvmpipe|software/i.test(name) && !/[?&](noadapt|n=)/.test(location.search)) {
         n = Math.min(n, 9000);
         this.dpr = 1;
       }
@@ -133,6 +140,7 @@ export class PointField {
     };
     this.mat = new ShaderMaterial({
       vertexShader: vert,
+      defines: { EYE_X: EYE_X.toFixed(4), EYE_Y: EYE_Y.toFixed(4), EYE_Z: EYE_Z.toFixed(4) },
       fragmentShader: frag,
       transparent: true,
       depthTest: false,
@@ -146,6 +154,9 @@ export class PointField {
         uLayoutA: { value: new Vector3(1, 0, 0) }, uLayoutB: { value: new Vector3(1, 0, 0) },
         uStationA: { value: new Vector3() }, uStationB: { value: new Vector3() }, uFocus: { value: new Vector3() },
         uPointer: { value: new Vector4(0, 0, 0, 1.15) },
+        // fewer points are drawn a little larger, so a small budget still reads
+        uDens: { value: Math.min(1.5, Math.pow(40000 / this.N, 0.33)) },
+        uGaze: { value: new Vector3() }, uVol: { value: 0 }, uEnergy: { value: 0 }, uBeatAmt: { value: 0 },
         uTextMask: { value: new Vector4(0, 0, 0.12, 0) },
       },
     });
@@ -333,6 +344,8 @@ export class PointField {
     this.micLevel = level ?? 0;
   }
   setBeatFast(v: boolean) { this.beatFast = v; }
+  /** scroll speed (Lenis velocity, px per frame): feeds the voice ring, the candles and the lens */
+  setVelocity(v: number) { this.velRaw = Math.min(160, Math.abs(v)); }
 
   /** the opening: the points are noise, then condense into whatever the page starts on. Skippable timeline. */
   intro(): gsap.core.Timeline {
@@ -470,6 +483,16 @@ export class PointField {
     this.look.lerpVectors(A.w, B.w, smoother(Math.min(1, t * 1.2)));
     (U.uFocus.value as Vector3).copy(this.look);
 
+    // the face looks at the cursor while it is moving, and wanders on its own otherwise
+    const F = t < 0.5 ? A : B;
+    if (F.name === 'face') {
+      const halfH = Math.tan((FOV * Math.PI) / 360) * CAM_Z, halfW = halfH * this.aspect;
+      const gx = Math.max(-1, Math.min(1, (this.ptr.x - F.lay.x / halfW) * 1.25));
+      const gy = Math.max(-1, Math.min(1, (this.ptr.y - F.lay.y / halfH) * 1.25));
+      this.gazeOn += ((this.reduced ? 0 : this.ptrTarget.a) - this.gazeOn) * (1 - Math.pow(0.02, dt));
+      (U.uGaze.value as Vector3).set(gx, gy, this.gazeOn);
+    }
+
     const k = this.reduced ? 1 : 1 - Math.pow(0.0015, dt);
     this.ptr.x += (this.ptrTarget.x - this.ptr.x) * k;
     this.ptr.y += (this.ptrTarget.y - this.ptr.y) * k;
@@ -503,6 +526,13 @@ export class PointField {
       this.beatRate += (target - this.beatRate) * (1 - Math.pow(0.05, dt));
       this.beat += dt * this.beatRate;
       U.uBeat.value = this.beat;
+      U.uBeatAmt.value += ((this.beatFast ? 1 : 0) - U.uBeatAmt.value) * (1 - Math.pow(0.03, dt));
+      // scroll energy: quick to rise, slow to settle
+      this.vel += (this.velRaw - this.vel) * (1 - Math.pow(this.velRaw > this.vel ? 0.0001 : 0.08, dt));
+      U.uEnergy.value = Math.min(1, this.vel / 55) + this.ptr.a * 0.12;
+      const volT = Math.max(0, Math.min(1, (this.vel - 38) / 70));
+      this.vol += (volT - this.vol) * (1 - Math.pow(volT > this.vol ? 0.001 : 0.25, dt));
+      U.uVol.value = this.vol;
     }
     this.fly(dt);
     U.uChaos.value = this.chaos.v;

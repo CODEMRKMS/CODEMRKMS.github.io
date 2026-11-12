@@ -2,7 +2,9 @@
 precision highp float;
 
 uniform float uTime, uProgress, uPR, uSize, uScroll, uSection, uChaos, uIntro, uBeat, uMic, uMicOn, uRipple, uDim, uAlphaMul;
-uniform float uFormA, uFormB, uTurb, uDrift;
+uniform float uFormA, uFormB, uTurb, uDrift, uVol, uEnergy, uBeatAmt, uDens;
+uniform vec3 uGaze;                // where the face looks: xy in -1..1, z = how much the cursor is in charge
+const vec3 EYE = vec3(EYE_X, EYE_Y, EYE_Z);
 uniform vec3 uLayoutA, uLayoutB;   // scale, cx, cy of the form inside its station
 uniform vec3 uStationA, uStationB; // world position of the two stations being travelled between
 uniform vec3 uFocus;               // what the camera is looking at (centre of the noise cloud)
@@ -69,34 +71,68 @@ vec3 form(float id, vec4 P, vec4 E, vec4 S) {
     p.z += .03 * sin(t * .8 + S.w * 20.);
     p.xy += .009 * vec2(sin(t + S.z * 30.), cos(t * 1.1 + S.x * 30.));
     gSize = .95; gAlpha = .95; gCol = ramp(tone * .82 + .04);
-  } else if (id < 2.5) {                           // 2 head-pose gaze cone
-    vec3 HEAD = vec3(-1.6, 0., 0.);
-    float yaw = .62 * sin(t * .33) + .1 * sin(t * .9), pitch = .28 * sin(t * .47 + 1.);
-    if (E.x < .5) {
-      p = rotZ(rotY(p - HEAD, -yaw * .5), pitch * .5) + HEAD;
-      gSize = 1.05; gAlpha = .85;
-    } else if (E.x < 1.5) {
-      p = rotZ(rotY(p - HEAD, -yaw), pitch) + HEAD;
-      float band = exp(-pow((E.y - fract(t * .22)) * 7., 2.));
-      gCol = ramp(.34 + .6 * E.y);
-      gAlpha = .5 + .3 * E.y + band * .6; gSize = .85 + band * .7;
+  } else if (id < 2.5) {                           // 2 face mesh, tracked eyes, gaze lines
+    // where the eyes are looking: a slow wander, or the cursor when uGaze.z says so
+    vec2 wander = vec2(.7 * sin(t * .33) + .15 * sin(t * .9), .45 * sin(t * .47 + 1.));
+    vec2 g = mix(wander, uGaze.xy, uGaze.z);
+    float yaw = g.x * .38, pitch = -g.y * .26;
+    vec3 PIV = vec3(0., 0., -.25);
+    vec3 T = vec3(g.x * 1.5, g.y * .95 + .1, 1.9);  // the point being looked at
+    float grp = E.x;
+    float away = smoothstep(.18, .5, length(g));
+    if (grp < .5) {                                // the head: mesh, landmarks, features
+      p = rotX(rotY(p - PIV, yaw), pitch) + PIV;
+      if (E.y < .5) { gSize = .72; gAlpha = .5; }
+      else if (E.y < 1.5) { gSize = 1.25; gAlpha = .95; gCol = ramp(.5); }
+      else { gSize = .95; gAlpha = .95; gCol = ramp(.36 + tone * .25); }
+    } else if (grp < 1.5) {                        // irises turn inside the eye
+      vec3 c = vec3(E.y * EYE.x, EYE.y, EYE.z) + vec3(g.x * .06, g.y * .032, 0.);
+      p = rotX(rotY(c + p - PIV, yaw), pitch) + PIV;
+      gSize = 1.05; gAlpha = 1.; gCol = ramp(.97);
+    } else if (grp < 2.5) {                        // gaze lines from each eye to the target
+      vec3 c = vec3(E.z * EYE.x, EYE.y, EYE.z) + vec3(g.x * .06, g.y * .032, 0.);
+      c = rotX(rotY(c - PIV, yaw), pitch) + PIV;
+      float s = E.y;
+      p = mix(c, T, s) + p * (.4 + s);
+      float band = exp(-pow((s - fract(t * .35)) * 7., 2.));
+      gCol = ramp(.4 + .55 * s);
+      gAlpha = (.42 + .3 * s + band * .6) * away; gSize = .7 + band * .7;
+    } else if (grp < 3.5) {                        // reticle on the target
+      p = T + p * (1. + .12 * sin(t * 2.4));
+      gSize = 1.; gAlpha = .95 * away; gCol = ramp(1.);
     } else {                                       // 20-30 kHz ultrasonic proximity pulse
       float ph = fract(t * .17 + E.y);
-      float R = 1.25 + ph * 2.3;
-      p = HEAD + vec3(p.x, p.y, 0.) * R;
-      gAlpha = .5 * (1. - ph) * smoothstep(0., .08, ph); gSize = .75; gCol = ramp(.5);
+      p = vec3(p.x, p.y, 0.) * (1.15 + ph * 1.5) + vec3(0., 0., -.3);
+      gAlpha = .42 * (1. - ph) * smoothstep(0., .08, ph); gSize = .7; gCol = ramp(.5);
     }
-    p = rotX(rotY(p - vec3(.15, 0., 0.), -.34), .12);
-  } else if (id < 3.5) {                           // 3 sentiment terrain
-    float ridge = E.x, s = E.y;
-    p.y += .05 * sin(p.x * 2.2 + t * .8 + p.z) * (.4 + ridge);
-    gCol = divRamp(s * 1.15);
-    gAlpha = .75 + .25 * ridge; gSize = 1.05;
-    p = rotX(rotY(p, -.42), .95);
+    p = rotY(p, .16) * 1.65;
+  } else if (id < 3.5) {                           // 3 candlestick landscape
+    float sgn = E.y, colx = E.z, ph = E.w, kind = E.x;
+    float depth = mix(.38, 1., smoothstep(-1.7, 1.7, p.z));   // the far series sit back
+    float live = smoothstep(.82, 1., colx);        // the newest candles are still trading
+    float n1 = .5 * sin(t * 1.7 + ph * 40.) + .5 * sin(t * 2.9 + ph * 17.);
+    float sweep = exp(-pow((colx - fract(t * .11)) * 9., 2.));
+    if (kind < 1.5 || kind > 3.5) {                // bodies, wicks and volume bars stretch about their base
+      float k = 1. + live * .4 * n1 + uVol * (1.5 * abs(sin(t * 5. + ph * 50.)) + .7 * n1);
+      p.y = tone + (p.y - tone) * k;
+      if (kind < 1.5) p.y += (live * .05 + uVol * .3) * sin(t * (2. + uVol * 5.) + ph * 90.);
+      // when the market panics, candles flip colour
+      sgn *= 1. - 2. * step(.5, hash11(floor(t * 6.) + ph * 91.)) * step(.3, uVol);
+      gCol = divRamp(sgn * (.85 + .15 * sweep));
+      gAlpha = (kind < .5 ? .92 : (kind < 1.5 ? .8 : .4)) + sweep * .3;
+      gSize = (kind < .5 ? .72 : .58) + sweep * .2 + uVol * .25;
+    } else if (kind < 2.5) {
+      gCol = uNeutral; gAlpha = .26; gSize = .5;
+    } else {                                       // moving average
+      p.y += uVol * .25 * sin(t * 6. + colx * 30.);
+      gCol = ramp(.5); gAlpha = .8 + sweep * .2; gSize = .6 + sweep * .4;
+    }
+    gAlpha *= depth;
+    p = rotX(rotY(p, -.4), .36);
   } else if (id < 4.5) {                           // 4 voice ring
     float l = E.y, th = E.x, tt = t - l * .55;
     float gate = pow(.5 + .5 * sin(tt * 2.6 + sin(tt * .8) * 2.), 1.6);
-    float amp = mix(gate, clamp(uMic * 2.2, 0., 1.5), uMicOn);
+    float amp = mix(gate, clamp(uMic * 2.2, 0., 1.5), uMicOn) + uEnergy * .8;
     float env = sin(th * 3. + tt * 2.1) * sin(th * 5. - tt * 1.3) * .6 + sin(th * 11. + tt * 7.) * .25 + sin(th * 2. + tt * .7) * .35;
     float R = 1.9 * (1. + .2 * amp * env) + (E.z - .5) * .07;
     p = vec3(cos(th), sin(th), p.z) * R;
@@ -127,17 +163,19 @@ vec3 form(float id, vec4 P, vec4 E, vec4 S) {
     gCol = mix(ramp(.4), grp < .5 ? ramp(.5) : (grp < 1.5 ? ramp(1.) : ramp(0.)), s);
     gAlpha = mix(.75, grp > 1.5 ? .4 : .95, s); gSize = .85;
     p = rotY(p, -.28);
-  } else {                                         // 7 pulse
+  } else {                                         // 7 a calm, breathing core; the heartbeat only shows on demand
     float ph = fract(uBeat);
-    float a = smoothstep(0., .05, ph) * exp(-ph * 5.5) + .55 * smoothstep(.2, .25, ph) * exp(-(ph - .2) * 9.);
+    float hb = smoothstep(0., .05, ph) * exp(-ph * 5.5) + .55 * smoothstep(.2, .25, ph) * exp(-(ph - .2) * 9.);
+    float br = .5 + .5 * sin(t * .55);
     if (E.x < .5) {
-      p *= 1. + .4 * a;
+      p *= 1. + mix(.07 * br, .4 * hb, uBeatAmt);
+      float a = mix(.25 + .2 * br, hb, uBeatAmt);
       gAlpha = .55 + .45 * a; gCol = ramp(.45 + .55 * tone); gSize = 1.05 + a * .9;
     } else {
-      p *= 1. + ph * 1.9;
-      gAlpha = .08 + .5 * (1. - ph) * (1. - ph); gCol = ramp(.25 + .3 * tone); gSize = .8;
+      p *= mix(1. + .05 * br + .015 * sin(t * .9 + S.w * 20.), 1. + ph * 1.9, uBeatAmt);
+      gAlpha = mix(.2 + .14 * br, .08 + .5 * (1. - ph) * (1. - ph), uBeatAmt); gCol = ramp(.25 + .3 * tone); gSize = .8;
     }
-    p = rotY(p, t * .1);
+    p = rotY(p, t * .06);
   }
   return p;
 }
@@ -163,9 +201,12 @@ void main() {
   }
 
   // one curl evaluation serves the resting drift, the mid-flight turbulence and the noise cloud
-  float turb = mid * .95 * uTurb + uDrift * .028;
+  // At rest the field is coherent, so a form sways as one body and its lines stay sharp. In flight and in
+  // the noise cloud every point reads its own patch of the field, which is what scatters them.
+  float turb = mid * .95 * uTurb + uDrift * .014;
   if (turb > .001 || uChaos > .001) {
-    vec3 cn = curl(pos * .5 + uTime * .1 + aSeed.yzw * 2.);
+    float own = clamp(mid * uTurb * 2. + uChaos * 2., 0., 1.);
+    vec3 cn = curl(pos * mix(.3, .5, own) + uTime * mix(.05, .1, own) + aSeed.yzw * 2. * own);
     pos += cn * turb;
     if (uChaos > .001) {
       float c = clamp(uChaos * 1.5 - aSeed.w * .5, 0., 1.);
@@ -196,7 +237,7 @@ void main() {
   float depth = smoothstep(.5, 2.4, -mv.z) * (1. - smoothstep(24., 42., -mv.z));
   alpha *= (1. - uTextMask.w * m) * (1. - uDim) * uIntro * uAlphaMul * depth;
 
-  gl_PointSize = min(uSize * uPR * size * 8. / max(-mv.z, .1), 16. * uPR);
+  gl_PointSize = min(uSize * uPR * uDens * size * 8. / max(-mv.z, .1), 16. * uPR);
   vColor = col;
   vAlpha = alpha;
 }

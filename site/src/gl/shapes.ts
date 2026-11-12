@@ -4,7 +4,7 @@
  * "tone" and the extras are interpreted by the matching branch in vert.glsl.
  */
 
-export const FORM = { stars: 0, name: 1, gaze: 2, terrain: 3, voice: 4, pipeline: 5, docs: 6, pulse: 7 } as const;
+export const FORM = { stars: 0, name: 1, face: 2, candles: 3, voice: 4, pipeline: 5, docs: 6, pulse: 7 } as const;
 export type FormName = keyof typeof FORM;
 export const FORM_COUNT = 8;
 
@@ -151,57 +151,175 @@ export function sampleText(text: string, font: string): { pts: number[]; w: numb
   }
 }
 
-/* ---------- 2: gaze cone ---------- */
-export const HEAD_X = -1.6;
-export function genGaze(N: number, r: Rnd): Float32Array {
+/* ---------- 2: face mesh with tracked eyes and gaze lines ---------- */
+/** half-width of the face outline at height y (y runs from -1 at the chin to 1 at the crown) */
+function faceHalf(y: number) {
+  if (y >= 0.15) return 0.74 * Math.sqrt(Math.max(0, 1 - Math.pow((y - 0.15) / 0.85, 2)));
+  const s = Math.min(1, (0.15 - y) / 1.15);
+  return 0.74 * (1 - 0.42 * Math.pow(s, 1.5)) * Math.sqrt(Math.max(0, 1 - Math.pow(s, 8)));
+}
+const g2 = (x: number, y: number, cx: number, cy: number, sx: number, sy: number) => Math.exp(-Math.pow((x - cx) / sx, 2) - Math.pow((y - cy) / sy, 2));
+/** depth of the face surface at (x, y): an ellipsoid with a nose, sockets, brow, cheeks, lips and chin */
+function faceZ(x: number, y: number) {
+  const hw = Math.max(0.02, faceHalf(y));
+  const u = Math.min(1, Math.abs(x) / hw);
+  let z = 0.62 * Math.pow(Math.max(0, 1 - u * u), 0.42) * (1 - 0.28 * y * y);
+  const ax = Math.abs(x);
+  // nose: a ridge that grows from the bridge to the tip, then tucks under
+  const ny = Math.max(0, Math.min(1, (0.24 - y) / 0.46));
+  const under = 1 - Math.max(0, Math.min(1, (-0.2 - y) / 0.08));
+  if (y < 0.3 && y > -0.3) z += (0.04 + 0.24 * ny * ny) * under * Math.exp(-Math.pow(x / (0.06 + 0.07 * ny), 2));
+  z -= 0.085 * g2(ax, y, 0.3, 0.2, 0.17, 0.1); // eye sockets
+  z += 0.045 * Math.exp(-Math.pow((y - 0.36) / 0.07, 2)) * (ax < 0.56 ? 1 : 0); // brow ridge
+  z += 0.04 * g2(ax, y, 0.46, -0.04, 0.16, 0.16); // cheekbones
+  z += 0.055 * g2(x, y, 0, -0.5, 0.24, 0.075); // lips
+  z += 0.05 * g2(x, y, 0, -0.84, 0.2, 0.1); // chin
+  return z;
+}
+export const EYE_X = 0.3, EYE_Y = 0.2, EYE_Z = faceZ(0.3, 0.2) + 0.03;
+const inEye = (x: number, y: number) => Math.pow((Math.abs(x) - EYE_X) / 0.165, 2) + Math.pow((y - EYE_Y) / 0.075, 2) < 1;
+
+export function genFace(N: number, r: Rnd): Float32Array {
   const o = new Float32Array(N * STRIDE);
-  const nh = Math.floor(N * 0.34), nc = Math.floor(N * 0.46);
   let i = 0;
-  for (let k = 0; k < nh; k++, i++) {
-    const y = 1 - (2 * (k + 0.5)) / nh, rr = Math.sqrt(1 - y * y), th = k * 2.399963;
-    const R = 0.85 * (1 + (r() - 0.5) * 0.04);
-    put(o, i, HEAD_X + R * rr * Math.cos(th), R * y, R * rr * Math.sin(th), 0.12 + 0.12 * r(), 0);
+  const take = (f: number) => Math.floor(N * f);
+  const onFace = (x: number, y: number, tone: number, kind: number, lift = 0.012) => put(o, i++, x, y, faceZ(x, y) + lift, tone, 0, kind);
+
+  // the mesh: lines of constant height and meridians that converge at the crown and the chin
+  const ROWS = 23, COLS = 15;
+  const rowY = (k: number) => -0.95 + (1.9 * k) / (ROWS - 1);
+  const colU = (k: number) => -0.93 + (1.86 * k) / (COLS - 1);
+  for (let n = take(0.4); n > 0; n--) {
+    let x: number, y: number;
+    do {
+      if (r() < 0.52) { y = rowY(Math.floor(r() * ROWS)); x = (r() * 2 - 1) * 0.97 * faceHalf(y); }
+      else { y = -0.97 + r() * 1.94; x = colU(Math.floor(r() * COLS)) * faceHalf(y); }
+    } while (inEye(x, y));
+    onFace(x, y, 0.1 + r() * 0.16, 0, 0);
   }
-  const tan = Math.tan(0.33), L = 3.5;
-  for (let k = 0; k < nc; k++, i++) {
-    const t = Math.pow(r(), 0.85);
-    const x = HEAD_X + 0.85 + t * L;
-    const rad = t * L * tan;
-    const rr = r() < 0.74 ? rad : rad * Math.sqrt(r());
-    const ph = r() * 6.2831853;
-    put(o, i, x, rr * Math.cos(ph), rr * Math.sin(ph), 0.42 + 0.58 * t, 1, t);
+  // tracked landmarks sit on the mesh crossings
+  for (let n = take(0.08); n > 0; n--) {
+    let x: number, y: number;
+    do { y = rowY(Math.floor(r() * ROWS)); x = colU(Math.floor(r() * COLS)) * faceHalf(y); } while (inEye(x, y));
+    const a = r() * 6.2832, rr = Math.sqrt(r()) * 0.011;
+    onFace(x + Math.cos(a) * rr, y + Math.sin(a) * rr, 0.5, 1);
   }
-  for (; i < N; i++) {
+  // outline
+  for (let n = take(0.07); n > 0; n--) {
+    const y = -1 + r() * 2, sgn = r() < 0.5 ? -1 : 1;
+    put(o, i++, sgn * faceHalf(y), y, -0.02, 0.36, 0, 2);
+  }
+  // eyelids
+  for (let n = take(0.05); n > 0; n--) {
+    const sgn = r() < 0.5 ? -1 : 1, d = (r() * 2 - 1) * 0.16, q = Math.pow(Math.max(0, 1 - Math.pow(d / 0.16, 2)), 0.8);
+    onFace(sgn * (EYE_X + d), EYE_Y + (r() < 0.58 ? 0.072 : -0.05) * q, 0.52, 2);
+  }
+  // brows
+  for (let n = take(0.035); n > 0; n--) {
+    const sgn = r() < 0.5 ? -1 : 1, t = r();
+    onFace(sgn * (0.13 + 0.38 * t), 0.37 + 0.05 * Math.sin(Math.PI * Math.pow(t, 0.8)) - 0.03 * t + (r() - 0.5) * 0.022 * (1 - t * 0.6), 0.5, 2);
+  }
+  // nose: two lines down from the bridge, the wings and the tip
+  for (let n = take(0.04); n > 0; n--) {
+    const sgn = r() < 0.5 ? -1 : 1, v = r();
+    if (v < 0.55) { const t = r(); onFace(sgn * (0.045 + 0.07 * t * t), 0.22 - 0.44 * t, 0.46, 2); }
+    else if (v < 0.85) { const a = -0.3 + r() * 3.2; onFace(sgn * (0.1 + Math.cos(a) * 0.045), -0.25 - Math.sin(a) * 0.04, 0.46, 2); }
+    else { const a = Math.PI + r() * Math.PI; onFace(Math.cos(a) * 0.055, -0.245 + Math.sin(a) * 0.03, 0.46, 2); }
+  }
+  // lips
+  for (let n = take(0.045); n > 0; n--) {
+    const x = (r() * 2 - 1) * 0.25, q = Math.pow(Math.max(0, 1 - Math.pow(x / 0.25, 2)), 0.7), v = r();
+    const y = v < 0.36 ? -0.5 + 0.05 * q * (1 - 0.4 * Math.exp(-Math.pow(x / 0.045, 2))) : v < 0.66 ? -0.502 - 0.012 * q : -0.5 - 0.068 * q;
+    onFace(x, y, 0.5, 2);
+  }
+  // irises: stored relative to the eye centre so the shader can turn them
+  for (let n = take(0.04); n > 0; n--) {
+    const sgn = r() < 0.5 ? -1 : 1, a = r() * 6.2832;
+    const rr = r() < 0.6 ? 0.058 + (r() - 0.5) * 0.008 : Math.sqrt(r()) * 0.026;
+    put(o, i++, Math.cos(a) * rr, Math.sin(a) * rr, 0, 0.95, 1, sgn);
+  }
+  // gaze lines: one per eye, e1 is the distance along the line
+  for (let n = take(0.13); n > 0; n--) {
+    const t = Math.pow(r(), 0.8);
+    put(o, i++, gauss(r) * 0.012, gauss(r) * 0.012, gauss(r) * 0.012, 0.45 + 0.5 * t, 2, t, r() < 0.5 ? -1 : 1);
+  }
+  // the point being looked at: a ring and a cross
+  for (let n = take(0.02); n > 0; n--) {
+    const v = r(), a = r() * 6.2832;
+    if (v < 0.6) put(o, i++, Math.cos(a) * 0.1, Math.sin(a) * 0.1, 0, 1, 3);
+    else { const d = (r() * 2 - 1) * 0.16; put(o, i++, v < 0.8 ? d : 0, v < 0.8 ? 0 : d, 0, 1, 3); }
+  }
+  // ultrasonic proximity pulses around the head
+  for (; i < N; ) {
     const ph = r() * 6.2831853, j = Math.floor(r() * 3);
-    put(o, i, Math.cos(ph), Math.sin(ph), 0, 0.3, 2, j / 3 + r() * 0.002);
+    put(o, i++, Math.cos(ph), Math.sin(ph), 0, 0.3, 4, j / 3 + r() * 0.002);
   }
   return o;
 }
 
-/* ---------- 3: volatility terrain ---------- */
-function terrain(x: number, z: number) {
-  const base = 0.34 * Math.sin(x * 0.9 + 1.3) * Math.cos(z * 1.1) + 0.2 * Math.sin(x * 2.1 - z * 1.7 + 0.5) + 0.1 * Math.sin(x * 3.9 + z * 3.1);
-  const d = z - (0.25 * x - 0.1);
-  const ridge = Math.exp(-(d * d) / 0.22) * (0.75 + 0.35 * Math.sin(x * 1.4 + 0.7));
-  const edge = Math.min(1, (3.5 - Math.abs(x)) * 1.2) * Math.min(1, (2.5 - Math.abs(z)) * 1.4);
-  const y = (base + 1.15 * ridge) * Math.max(0.2, edge) - 0.15;
-  const s = Math.max(-1, Math.min(1, 0.72 * Math.sin(x * 0.7 + 0.4) * Math.cos(z * 0.9) + 0.5 * (ridge - 0.3) + 0.22 * Math.sin(x * 3 - z * 2)));
-  return { y, ridge, s };
-}
-export function genTerrain(N: number, r: Rnd): Float32Array {
+/* ---------- 3: candlestick landscape ---------- */
+export const CANDLE_ROWS = 3, CANDLE_COLS = 12;
+/**
+ * Three price series receding in depth. Each is drawn as candles (body + wick), a moving-average
+ * line through the closes and volume bars on the floor. e0: 0 body, 1 wick, 2 floor, 3 average, 4 volume.
+ */
+export function genCandles(N: number, r: Rnd): Float32Array {
   const o = new Float32Array(N * STRIDE);
-  const G = Math.floor(Math.sqrt(N));
+  const total = CANDLE_ROWS * CANDLE_COLS;
+  const per = Math.floor((N * 0.56) / total);
+  const perVol = Math.floor((N * 0.12) / total);
+  const perAvg = Math.floor((N * 0.12) / CANDLE_ROWS);
   let i = 0;
-  for (let gx = 0; gx < G; gx++) {
-    for (let gz = 0; gz < G; gz++, i++) {
-      const x = (gx / (G - 1) - 0.5) * 6.8, z = (gz / (G - 1) - 0.5) * 4.8;
-      const t = terrain(x, z);
-      put(o, i, x, t.y, z, 0, t.ridge, t.s);
+  const HW = 0.15, SPAN = 5.6, FLOOR = -1.62;
+  const cx = (c: number) => (c / (CANDLE_COLS - 1) - 0.5) * SPAN;
+  for (let row = 0; row < CANDLE_ROWS; row++) {
+    const z = (row / (CANDLE_ROWS - 1) - 0.5) * 3.4;
+    const oc: number[][] = [];
+    let price = 0, lo = 1e9, hi = -1e9;
+    const drift = 0.05 + (r() - 0.5) * 0.08;
+    for (let c = 0; c < CANDLE_COLS; c++) {
+      const open = price, close = open + (r() < 0.5 ? -1 : 1) * (0.22 + Math.abs(gauss(r)) * 0.3) + drift + 0.2 * Math.sin(c * 0.8 + row * 1.7);
+      const h = Math.max(open, close) + Math.abs(gauss(r)) * 0.22, l = Math.min(open, close) - Math.abs(gauss(r)) * 0.22;
+      oc.push([open, close, h, l]);
+      price = close;
+      lo = Math.min(lo, l); hi = Math.max(hi, h);
+    }
+    const sc = 2.9 / Math.max(0.5, hi - lo), ny = (v: number) => -1.3 + (v - lo) * sc;
+    for (let c = 0; c < CANDLE_COLS; c++) {
+      const [open, close, h, l] = oc[c];
+      const x = cx(c);
+      const y0 = ny(Math.min(open, close)), y1 = Math.max(ny(Math.max(open, close)), y0 + 0.12);
+      const mid = (y0 + y1) / 2, sgn = close >= open ? 1 : -1, ph = r(), col = c / (CANDLE_COLS - 1);
+      for (let k = 0; k < per; k++) {
+        const v = r();
+        if (v < 0.16) put(o, i++, x + gauss(r) * 0.005, ny(l) + r() * (ny(h) - ny(l)), z + gauss(r) * 0.005, mid, 1, sgn, col, ph); // wick
+        else if (v < 0.74) { // the 12 edges, so the body reads as a box
+          const e = Math.floor(r() * 12), t = r() * 2 - 1, a = e & 1 ? 1 : -1, b = e & 2 ? 1 : -1;
+          if (e < 4) put(o, i++, x + a * HW, mid + (t * (y1 - y0)) / 2, z + b * HW, mid, 0, sgn, col, ph);
+          else if (e < 8) put(o, i++, x + t * HW, a > 0 ? y1 : y0, z + b * HW, mid, 0, sgn, col, ph);
+          else put(o, i++, x + a * HW, b > 0 ? y1 : y0, z + t * HW, mid, 0, sgn, col, ph);
+        } else { // faces
+          const f = Math.floor(r() * 4), t = r() * 2 - 1, yy = y0 + r() * (y1 - y0);
+          if (f < 2) put(o, i++, x + (f ? HW : -HW), yy, z + t * HW, mid, 0, sgn, col, ph);
+          else put(o, i++, x + t * HW, yy, z + (f === 2 ? HW : -HW), mid, 0, sgn, col, ph);
+        }
+      }
+      // volume bar on the floor
+      const vol = 0.08 + Math.min(0.5, Math.abs(close - open) * sc * 0.45 + r() * 0.1);
+      for (let k = 0; k < perVol; k++) put(o, i++, x + (r() * 2 - 1) * HW * 0.8, FLOOR + r() * vol, z + gauss(r) * 0.01, FLOOR, 4, sgn, col, ph);
+    }
+    // moving average through the closes
+    const avg = oc.map((_, c) => { let a = 0, n = 0; for (let k = Math.max(0, c - 2); k <= c; k++) { a += oc[k][1]; n++; } return ny(a / n) + 0.02; });
+    for (let k = 0; k < perAvg; k++) {
+      const f = r() * (CANDLE_COLS - 1), c = Math.floor(f), t = f - c;
+      const y = avg[c] + (avg[Math.min(CANDLE_COLS - 1, c + 1)] - avg[c]) * (t * t * (3 - 2 * t));
+      put(o, i++, cx(0) + (f / (CANDLE_COLS - 1)) * SPAN, y, z, y, 3, 0, f / (CANDLE_COLS - 1), r());
     }
   }
-  for (; i < N; i++) {
-    const x = (r() - 0.5) * 6.8, z = (r() - 0.5) * 4.8, t = terrain(x, z);
-    put(o, i, x, t.y, z, 0, t.ridge, t.s);
+  // the floor: a line under each series and cross lines, like chart paper
+  for (; i < N; ) {
+    if (r() < 0.55) { const row = Math.floor(r() * CANDLE_ROWS); put(o, i++, (r() - 0.5) * (SPAN + 0.8), FLOOR, (row / (CANDLE_ROWS - 1) - 0.5) * 3.4, 0, 2, 0, r()); }
+    else { const c = Math.floor(r() * 11); put(o, i++, (c / 10 - 0.5) * (SPAN + 0.8), FLOOR, (r() - 0.5) * 4, 0, 2, 0, c / 10); }
   }
   return o;
 }
@@ -299,16 +417,34 @@ export function genPulse(N: number, r: Rnd): Float32Array {
   return o;
 }
 
+/**
+ * Generators write points group by group. Shuffling the records means a reduced draw range
+ * (the low-quality fallback) thins every part of a form evenly instead of cutting off whole groups.
+ */
+function shuffle(o: Float32Array, r: Rnd): Float32Array {
+  const n = o.length / STRIDE, tmp = new Float32Array(STRIDE);
+  for (let i = n - 1; i > 0; i--) {
+    const j = Math.floor(r() * (i + 1));
+    if (i === j) continue;
+    tmp.set(o.subarray(i * STRIDE, i * STRIDE + STRIDE));
+    o.copyWithin(i * STRIDE, j * STRIDE, j * STRIDE + STRIDE);
+    o.set(tmp, j * STRIDE);
+  }
+  return o;
+}
+
 /** every shape except the wordmark (index 1 is left empty for the caller) */
 export function buildShapes(N: number, seed = 1234): Float32Array[] {
   const mk = (n: number) => mulberry32(seed + n * 101);
   const out: Float32Array[] = new Array(FORM_COUNT);
   out[FORM.stars] = genStars(N, mk(0));
-  out[FORM.gaze] = genGaze(N, mk(2));
-  out[FORM.terrain] = genTerrain(N, mk(3));
+  out[FORM.face] = genFace(N, mk(2));
+  out[FORM.candles] = genCandles(N, mk(3));
   out[FORM.voice] = genVoice(N, mk(4));
   out[FORM.pipeline] = genPipeline(N, mk(5));
   out[FORM.docs] = genDocs(N, mk(6));
   out[FORM.pulse] = genPulse(N, mk(7));
+  const sr = mulberry32(seed + 9001);
+  for (const f of [FORM.face, FORM.candles, FORM.voice, FORM.pipeline, FORM.docs, FORM.pulse]) shuffle(out[f], sr);
   return out;
 }

@@ -46,9 +46,11 @@ async function boot() {
   }
   gsap.ticker.add((time, dt) => {
     lenis?.raf(time * 1000);
-    field?.tick(dt);
+    if (field) { field.setVelocity(lenis ? lenis.velocity : 0); field.tick(dt); }
   });
 
+  // ?debug exposes the field for inspection from the console and the capture scripts
+  if (field && /[?&](debug|fps)/.test(location.search)) (window as unknown as { __field: PointField }).__field = field;
   initTheme((t) => field?.setTheme(t));
 
   const ctx = { field, lenis, reduced };

@@ -1,5 +1,6 @@
 // Viewport captures: node scripts/cap.mjs <outDir> <WxH> <night|day> <path>[@selector|@y] ...
 // e.g. node scripts/cap.mjs shots 1440x900 night "/@[data-form=face]" "/work/proctoring/@0"
+// MOUSE=0.9,0.3 moves the pointer there (fractions of the viewport) before the shot.
 // Env: BASE (default http://localhost:4173), WAIT ms after scroll (default 2600), REDUCED=1, GPU=1 to try the real GPU.
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
@@ -33,6 +34,7 @@ for (const t of targets) {
     }, where);
     await page.waitForTimeout(wait);
   }
+  if (process.env.MOUSE) { const [mx, my] = process.env.MOUSE.split(',').map(Number); await page.mouse.move(mx * W - 30, my * H); await page.mouse.move(mx * W, my * H, { steps: 6 }); await page.waitForTimeout(900); }
   const name = `${String(n++).padStart(2, '0')}-${(path + '_' + where).replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '')}-${W}-${theme}.png`;
   await page.screenshot({ path: `${out}/${name}` });
   await page.close();
