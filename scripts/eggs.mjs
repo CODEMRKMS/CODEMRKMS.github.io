@@ -12,7 +12,7 @@ const page = await ctx.newPage();
 const log = [];
 page.on('console', (m) => { if (['error', 'warning'].includes(m.type()) && !/ReadPixels|GPU stall/.test(m.text())) log.push(`${m.type()}: ${m.text().slice(0, 300)}`); });
 page.on('pageerror', (e) => log.push(`PAGEERROR: ${e.message}`));
-await page.goto(base + '/?debug', { waitUntil: 'load' });
+await page.goto(base + '/?debug&noadapt', { waitUntil: 'load' });
 await page.waitForTimeout(6000);
 const count = () => page.evaluate(() => document.querySelector('.foot-eggs')?.textContent ?? 'none');
 

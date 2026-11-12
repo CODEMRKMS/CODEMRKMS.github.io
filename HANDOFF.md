@@ -105,6 +105,19 @@ in this file; `PLAN.md`, `DESIGN.md` and `REVIEW.md` still describe v1 and have 
 - `node scripts/motion.mjs <outDir>` (TIER=high for the post path) captures the theme change, cursor, count-up
   and a page transition.
 
+**Item 6 (in progress, not finished)**
+- Done: browsers with only a software rasteriser (SwiftShader, llvmpipe) now get the no-WebGL page. `gpuAvailable()`
+  in `quality.ts` probes before three.js is downloaded; `?nogl` forces the fallback, `?noadapt` / `?tier=` / `?n=`
+  keep the scene on (the capture scripts use these). Shaders are compiled with `compileAsync` before the first frame.
+  `lookAway()` does nothing under reduced motion.
+- Lighthouse mobile (headless, software GPU): accessibility 100 on home and proctoring. Performance 0.96 with `?nogl`,
+  but 0.70 on the default URL: a ~2 s long task remains during load on a software-only browser (attributed to
+  `_lighthouse-eval.js`, probably the probe's context creation). Not yet diagnosed. Real-GPU score unmeasured.
+- Tried and reverted, unverified: keeping `.hero-name` as visible text until `html.gl-ready` (LCP 3.3 s -> 2.0 s),
+  because it changes the hero layout and was not checked visually.
+- Still owed: reduced-motion review of every form (captures taken, not reviewed), keyboard walk-through, focus
+  visibility, AA contrast in both themes including text over bloom, Lighthouse perf 90+.
+
 ## Known issues
 - No 404 page yet. `old-site/` is dead code still in the repo.
 - A `vite preview` process from this session may still be listening on port 4173.

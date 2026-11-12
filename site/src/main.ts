@@ -7,6 +7,7 @@ import { initTheme } from './theme';
 import { initWidthAxis } from './type';
 import { Router } from './router';
 import { initFaceHud } from './hud';
+import { gpuAvailable } from './gl/quality';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -15,7 +16,7 @@ const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 async function boot() {
   const canvas = document.getElementById('field') as HTMLCanvasElement | null;
-  let hasGL = !!canvas && !!window.WebGLRenderingContext;
+  let hasGL = !!canvas && !!window.WebGLRenderingContext && gpuAvailable();
   let field: PointField | null = null;
   let mod: typeof import('./gl/field') | null = null;
   if (hasGL) {

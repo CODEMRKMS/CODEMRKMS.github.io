@@ -6,7 +6,7 @@ import { mkdirSync } from 'node:fs';
 
 const out = process.argv[2];
 const base = process.env.BASE || 'http://localhost:4173';
-const q = process.env.TIER ? `?tier=${process.env.TIER}&noadapt` : '';
+const q = process.env.TIER ? `?tier=${process.env.TIER}&noadapt` : '?noadapt';
 mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--enable-webgl'] });
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });

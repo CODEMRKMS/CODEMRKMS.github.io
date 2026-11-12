@@ -140,6 +140,13 @@ export class PointField {
       gpu = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : '';
     } catch { /* keep the default */ }
     this.quality = new Quality(gpu);
+    // No GPU: a software rasteriser needs seconds of main-thread time just to compile this scene's shaders, and
+    // every frame after that is a long task. Those browsers get the no-WebGL page instead (the caller falls back).
+    // ?noadapt, ?tier= and ?n= keep the scene on, which is how the capture scripts run it.
+    if (this.quality.software && !/[?&](noadapt|tier=|n=)/.test(location.search)) {
+      this.renderer.dispose();
+      throw new Error('software renderer');
+    }
     this.N = this.quality.points;
     this.dpr = Math.min(window.devicePixelRatio || 1, this.quality.level.dpr);
     this.bgMat = new ShaderMaterial({
@@ -262,6 +269,8 @@ export class PointField {
       this.install(FORM.name, genWordmark(N, ['Mohammed', 'Shadab'], fontFamily, mulberry32(99)));
     } catch { /* no 2d canvas: bind() falls back to the star field so the page still works */ }
     await rest;
+    // compile the shaders off the main thread where the driver allows it, so the first frame does not hitch
+    try { this.bind(FORM.stars, FORM.stars); await this.renderer.compileAsync(this.scene, this.camera); } catch { /* compiled on first draw instead */ }
     this.ready = true;
     this.boundA = this.boundB = -1;
     this.rebuildScenery();
@@ -651,7 +660,7 @@ export class PointField {
     f.conf += (target - f.conf) * (this.reduced ? 1 : 1 - Math.exp(-dt * 7));
   }
   /** the tracker loses the face for a moment: the mesh flashes amber and its confidence drops, then recovers */
-  lookAway() { this.fs.flash = 1.4; this.fs.drop = 0.55; this.dirty = true; }
+  lookAway() { if (this.reduced) return; this.fs.flash = 1.4; this.fs.drop = 0.55; this.dirty = true; }
   /** what the eggs need to know: the form in front of the camera, how volatile the candles are, how much the cursor steers the gaze */
   eggState() { return { form: this.stops[Math.round(this.u)]?.name ?? 'stars', vol: this.vol, gaze: this.gazeOn }; }
   /** the particle wordmark fades out while the name is on screen as loose letters, and back in afterwards */

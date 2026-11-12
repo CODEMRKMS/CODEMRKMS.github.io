@@ -25,6 +25,29 @@ const POINTS: Record<Tier, number> = { high: 40000, mid: 22000, low: 12000 };
 
 const WINDOW = 30;
 
+/**
+ * Is there a GPU worth starting the scene on? Asked before three.js is even downloaded. A browser that can only
+ * offer a software rasteriser refuses a context with failIfMajorPerformanceCaveat, quickly, and gets the plain page.
+ * ?noadapt, ?tier= and ?n= skip the caveat check (the capture scripts run on a software renderer).
+ */
+export function gpuAvailable(): boolean {
+  const strict = !/[?&](noadapt|tier=|n=)/.test(location.search);
+  if (/[?&]nogl/.test(location.search)) return false; // ?nogl shows the fallback page on any machine
+  try {
+    const c = document.createElement('canvas');
+    const opts = { failIfMajorPerformanceCaveat: strict };
+    const gl = (c.getContext('webgl2', opts) || c.getContext('webgl', opts)) as WebGLRenderingContext | null;
+    if (!gl) return false;
+    // some browsers hand out a software context anyway: the renderer's name settles it
+    const info = gl.getExtension('WEBGL_debug_renderer_info');
+    const name = info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : '';
+    gl.getExtension('WEBGL_lose_context')?.loseContext();
+    return !(strict && isSoftware(name));
+  } catch {
+    return false;
+  }
+}
+
 export function isSoftware(renderer: string) { return /swiftshader|llvmpipe|software|basic render/i.test(renderer); }
 
 /** tier from the unmasked renderer string; falls back to cores and memory when the string says nothing useful */
