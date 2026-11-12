@@ -126,6 +126,31 @@ export function genWordmark(N: number, lines: string[], font: string, r: Rnd): F
   return o;
 }
 
+/** sample a short string into xy points (cap height 1, origin bottom-left). Main thread only. */
+export function sampleText(text: string, font: string): { pts: number[]; w: number } | null {
+  try {
+    const size = 120;
+    const cv = document.createElement('canvas');
+    const ctx = cv.getContext('2d', { willReadFrequently: true })!;
+    ctx.font = `800 ${size}px ${font}`;
+    cv.width = Math.ceil(ctx.measureText(text).width + 8);
+    cv.height = Math.ceil(size * 1.1);
+    ctx.font = `800 ${size}px ${font}`;
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(text, 4, size * 0.9);
+    const img = ctx.getImageData(0, 0, cv.width, cv.height).data;
+    const cap = size * 0.72;
+    const pts: number[] = [];
+    for (let y = 0; y < cv.height; y += 2) for (let x = 0; x < cv.width; x += 2) {
+      if (img[(y * cv.width + x) * 4 + 3] > 140) pts.push(x / cap, (size * 0.9 - y) / cap);
+    }
+    return pts.length ? { pts, w: cv.width / cap } : null;
+  } catch {
+    return null;
+  }
+}
+
 /* ---------- 2: gaze cone ---------- */
 export const HEAD_X = -1.6;
 export function genGaze(N: number, r: Rnd): Float32Array {

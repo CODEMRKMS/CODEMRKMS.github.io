@@ -2,7 +2,7 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { SplitText } from 'gsap/SplitText';
 import type Lenis from 'lenis';
-import type { PointField, Target, Kind } from './gl/field';
+import type { PointField, Kind, Station } from './gl/field';
 import type { FormName } from './gl/shapes';
 import { startMic } from './mic';
 import { trackDisplays } from './type';
@@ -27,9 +27,10 @@ export function textBlocks(root: Element): HTMLElement[] {
   return all.filter((e) => !all.some((o) => o !== e && e.contains(o)));
 }
 
-export function readTarget(main: Element): Target {
-  const el = main.querySelector<HTMLElement>('[data-form]');
-  return { form: (el?.dataset.form as FormName) || 'stars', kind: ((el?.dataset.kind as Kind) || 'center') };
+/** the sections that own a form, in page order: these are the stations the camera visits */
+export function readStations(main: Element): { els: HTMLElement[]; stations: Station[] } {
+  const els = Array.from(main.querySelectorAll<HTMLElement>('[data-form]'));
+  return { els, stations: els.map((el) => ({ form: el.dataset.form as FormName, kind: (el.dataset.kind as Kind) || 'center', year: el.dataset.t })) };
 }
 
 export function initPage(main: HTMLElement, ctx: Ctx, opts: { first: boolean }): PageHandle {
@@ -78,11 +79,35 @@ export function initPage(main: HTMLElement, ctx: Ctx, opts: { first: boolean }):
 
   /* ----- forms follow the sections ----- */
   if (field) {
-    main.querySelectorAll<HTMLElement>('[data-form]').forEach((sec) => {
-      const target: Target = { form: sec.dataset.form as FormName, kind: (sec.dataset.kind as Kind) || 'center' };
-      const go = () => field.go(target);
-      triggers.push(ScrollTrigger.create({ trigger: sec, start: 'top 58%', end: 'bottom 58%', onEnter: go, onEnterBack: go }));
-    });
+    // One scrubbed trigger maps scroll to a position on the route. Each station hands over to the next
+    // in a band around the moment the next section's top crosses 55% of the viewport.
+    const { els, stations } = readStations(main);
+    field.setScore(stations);
+    let bounds: number[] = [], halves: number[] = [];
+    const measure = () => {
+      const vh = window.innerHeight, sy = window.scrollY;
+      const maxS = Math.max(vh * 0.12, document.documentElement.scrollHeight - vh - 2);
+      bounds = els.map((el, i) => (i === 0 ? -1e9 : Math.min(maxS, Math.max(vh * 0.12, el.getBoundingClientRect().top + sy - vh * 0.55))));
+      halves = bounds.map((b, i) => {
+        if (i === 0) return 1;
+        let h = Math.min(vh * 0.34, b);
+        if (i > 1) h = Math.min(h, (b - bounds[i - 1]) / 2);
+        if (i < bounds.length - 1) h = Math.min(h, (bounds[i + 1] - b) / 2);
+        return Math.max(1, h);
+      });
+    };
+    const posAt = (y: number) => {
+      let u = 0;
+      for (let i = 1; i < bounds.length; i++) u += Math.max(0, Math.min(1, (y - (bounds[i] - halves[i])) / (2 * halves[i])));
+      return u;
+    };
+    measure();
+    field.setPos(posAt(window.scrollY), true);
+    triggers.push(ScrollTrigger.create({
+      start: 0, end: 'max',
+      onUpdate: (self) => { field.setPos(posAt(self.scroll())); field.setScroll(self.progress * 2.2); },
+      onRefresh: (self) => { measure(); field.setPos(posAt(self.scroll())); },
+    }));
     // document sorting is scrubbed by scroll through its section
     main.querySelectorAll<HTMLElement>('[data-scrub]').forEach((sec) => {
       triggers.push(
@@ -94,8 +119,6 @@ export function initPage(main: HTMLElement, ctx: Ctx, opts: { first: boolean }):
         }),
       );
     });
-    // slow star parallax follows page progress
-    triggers.push(ScrollTrigger.create({ start: 0, end: 'max', onUpdate: (self) => field.setScroll(self.progress * 2.2) }));
     field.setSection(0);
   }
 
@@ -110,7 +133,8 @@ export function initPage(main: HTMLElement, ctx: Ctx, opts: { first: boolean }):
     io.observe(stage);
     cleanups.push(() => io.disconnect());
     const place = () => {
-      if (!near || !mq.matches || field.target.form !== 'stars') { if (stage.classList.contains('is-placed')) stage.classList.remove('is-placed'); return; }
+      const at = field.resting;
+      if (!near || !mq.matches || !at || at.form !== 'stars' || at.kind !== 'hero') { if (stage.classList.contains('is-placed')) stage.classList.remove('is-placed'); return; }
       stage.classList.add('is-placed');
       const r = stage.getBoundingClientRect();
       for (const li of items) {

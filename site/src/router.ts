@@ -1,7 +1,7 @@
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import type Lenis from 'lenis';
-import { initPage, inView, readTarget, splitLines, textBlocks, type Ctx, type PageHandle } from './page';
+import { initPage, inView, splitLines, textBlocks, type Ctx, type PageHandle } from './page';
 
 const ROUTES = new Set(['/', '/work/proctoring/', '/work/quant-trading/', '/work/voicepay/', '/experience/', '/about/']);
 
@@ -106,17 +106,15 @@ export class Router {
       location.href = url.href;
       return;
     }
-    const target = readTarget(next.main);
     document.documentElement.classList.add('is-transitioning');
 
     if (reduced) {
       await this.crossfade(() => this.swap(next, url, push));
     } else {
-      const exit = this.exitText(dir);
-      field?.go(target, { duration: 1.5 });
-      field?.dolly(dir);
-      await exit;
+      // the form dissolves into noise while the text leaves; the new page's route is installed under the noise
+      await Promise.all([this.exitText(dir), field?.dissolve(dir)]);
       this.swap(next, url, push);
+      field?.resolve(dir);
       await this.enterText(dir);
     }
     document.documentElement.classList.remove('is-transitioning');

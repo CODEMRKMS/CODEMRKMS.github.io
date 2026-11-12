@@ -2,9 +2,11 @@
 precision highp float;
 
 uniform float uTime, uProgress, uPR, uSize, uScroll, uSection, uChaos, uIntro, uBeat, uMic, uMicOn, uRipple, uDim, uAlphaMul;
-uniform float uFormA, uFormB;
-uniform vec3 uLayout;   // scale, cx, cy
-uniform vec4 uPointer;  // world xy, strength, radius
+uniform float uFormA, uFormB, uTurb, uDrift;
+uniform vec3 uLayoutA, uLayoutB;   // scale, cx, cy of the form inside its station
+uniform vec3 uStationA, uStationB; // world position of the two stations being travelled between
+uniform vec3 uFocus;               // what the camera is looking at (centre of the noise cloud)
+uniform vec4 uPointer;  // view-space xy per unit depth, strength, radius
 uniform vec4 uTextMask; // side (-1 left, 0 none, 1 right), edge (ndc), softness, strength
 uniform vec3 uC0, uC1, uC2, uNeutral;
 
@@ -88,11 +90,6 @@ vec3 form(float id, vec4 P, vec4 E, vec4 S) {
   } else if (id < 3.5) {                           // 3 sentiment terrain
     float ridge = E.x, s = E.y;
     p.y += .05 * sin(p.x * 2.2 + t * .8 + p.z) * (.4 + ridge);
-    vec2 lp = vec2((uPointer.x - uLayout.y) / uLayout.x, -(uPointer.y - uLayout.z) / uLayout.x * 1.3);
-    float d = length(p.xz - lp);
-    float rip = sin(d * 5.5 - t * 4.2) * exp(-d * 1.05) * uRipple;
-    p.y += rip * .34 * (.3 + ridge * 1.5);
-    s = clamp(s + rip * .55, -1., 1.);
     gCol = divRamp(s * 1.15);
     gAlpha = .75 + .25 * ridge; gSize = 1.05;
     p = rotX(rotY(p, -.42), .95);
@@ -145,42 +142,61 @@ vec3 form(float id, vec4 P, vec4 E, vec4 S) {
   return p;
 }
 
+vec3 place(vec3 p, vec3 lay, vec3 st) { return p * lay.x + vec3(lay.yz, 0.) + st; }
+
 void main() {
-  vec3 pos, col; float alpha, size, mid0 = 0.;
-  vec3 pb = form(uFormB, aB, aB2, aSeed);
+  vec3 pos, col; float alpha, size, mid = 0.;
   if (uProgress >= .9999) {
-    pos = pb; col = gCol; alpha = gAlpha; size = gSize;
+    pos = place(form(uFormB, aB, aB2, aSeed), uLayoutB, uStationB); col = gCol; alpha = gAlpha; size = gSize;
+  } else if (uProgress <= .0001) {
+    pos = place(form(uFormA, aA, aA2, aSeed), uLayoutA, uStationA); col = gCol; alpha = gAlpha; size = gSize;
   } else {
+    vec3 pb = place(form(uFormB, aB, aB2, aSeed), uLayoutB, uStationB);
     vec3 cb = gCol; float ab = gAlpha, sb = gSize;
-    vec3 pa = form(uFormA, aA, aA2, aSeed);
+    vec3 pa = place(form(uFormA, aA, aA2, aSeed), uLayoutA, uStationA);
+    // every point leaves on its own schedule, so the form streams from one station to the next
     float q = clamp(uProgress * 1.45 - aSeed.x * .45, 0., 1.);
     float e = q < .5 ? 4. * q * q * q : 1. - pow(-2. * q + 2., 3.) / 2.;
     pos = mix(pa, pb, e);
-    float mid = sin(3.14159265 * e);
+    mid = sin(3.14159265 * e);
     col = mix(gCol, cb, e); alpha = mix(gAlpha, ab, e); size = mix(gSize, sb, e);
-    mid0 = mid;
   }
-  // one curl evaluation serves both the mid-flight turbulence and the opening noise
-  float turb = mid0 * .95 + uChaos * 1.6;
-  if (turb > .001) pos += curl(pos * .5 + uTime * .1 + aSeed.yzw * 2.) * turb;
 
-  pos = pos * uLayout.x + vec3(uLayout.yz, 0.);
-
-  vec2 d = pos.xy - uPointer.xy;
-  float r2 = dot(d, d), R = uPointer.w;
-  float f = exp(-r2 / (R * R)) * uPointer.z;
-  pos.xy += d / (sqrt(r2) + .001) * f * .45;
-  pos.z += f * .6;
+  // one curl evaluation serves the resting drift, the mid-flight turbulence and the noise cloud
+  float turb = mid * .95 * uTurb + uDrift * .028;
+  if (turb > .001 || uChaos > .001) {
+    vec3 cn = curl(pos * .5 + uTime * .1 + aSeed.yzw * 2.);
+    pos += cn * turb;
+    if (uChaos > .001) {
+      float c = clamp(uChaos * 1.5 - aSeed.w * .5, 0., 1.);
+      c = c * c * (3. - 2. * c);
+      vec3 npos = uFocus + (aSeed.xyz - .5) * vec3(15., 8.5, 9.) + cn * 1.3;
+      pos = mix(pos, npos, c);
+      col = mix(col, ramp(aSeed.x), c * .8);
+      alpha = mix(alpha, .3 + .55 * aSeed.y, c);
+      size = mix(size, .55 + aSeed.y * .9, c);
+    }
+  }
 
   vec4 mv = modelViewMatrix * vec4(pos, 1.);
+
+  // the pointer pushes points aside, measured in view space so it works wherever the camera is
+  vec2 d = mv.xy - uPointer.xy * (-mv.z);
+  float r2 = dot(d, d), R = uPointer.w;
+  float f = exp(-r2 / (R * R)) * uPointer.z;
+  mv.xy += d / (sqrt(r2) + .001) * f * .45;
+  mv.z += f * .6;
+
   gl_Position = projectionMatrix * mv;
 
   float nx = gl_Position.x / gl_Position.w;
   float m = uTextMask.x < -.5 ? 1. - smoothstep(uTextMask.y - uTextMask.z, uTextMask.y + uTextMask.z, nx)
           : (uTextMask.x > .5 ? smoothstep(uTextMask.y - uTextMask.z, uTextMask.y + uTextMask.z, nx) : 0.);
-  alpha *= (1. - uTextMask.w * m) * (1. - uDim) * uIntro * uAlphaMul * smoothstep(.5, 2.4, -mv.z);
+  // depth fade: nothing pops at the lens, and far stations sink into the dark
+  float depth = smoothstep(.5, 2.4, -mv.z) * (1. - smoothstep(24., 42., -mv.z));
+  alpha *= (1. - uTextMask.w * m) * (1. - uDim) * uIntro * uAlphaMul * depth;
 
-  gl_PointSize = min(uSize * uPR * size * 8. / max(-mv.z, .1), 26. * uPR);
+  gl_PointSize = min(uSize * uPR * size * 8. / max(-mv.z, .1), 16. * uPR);
   vColor = col;
   vAlpha = alpha;
 }

@@ -2,11 +2,10 @@ import './styles/index.css';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
-import type { PointField, Target } from './gl/field';
+import type { PointField } from './gl/field';
 import { initTheme } from './theme';
 import { initWidthAxis } from './type';
 import { Router } from './router';
-import { readTarget } from './page';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -64,8 +63,7 @@ async function boot() {
     ]);
     await fontReady;
     await field.build('Anybody, "Arial Black", sans-serif');
-    const first: Target = readTarget(document.getElementById('main')!);
-    const tl = field.intro(first);
+    const tl = field.intro();
     if (!reduced) {
       // skippable: any scroll, click, touch or key finishes the intro quickly
       const skip = () => { tl.timeScale(9); cleanup(); };
