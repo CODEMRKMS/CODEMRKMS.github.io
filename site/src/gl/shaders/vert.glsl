@@ -75,7 +75,8 @@ vec3 form(float id, vec4 P, vec4 E, vec4 S) {
     // where the eyes are looking: a slow wander, or the cursor when uGaze.z says so
     vec2 wander = vec2(.7 * sin(t * .33) + .15 * sin(t * .9), .45 * sin(t * .47 + 1.));
     vec2 g = mix(wander, uGaze.xy, uGaze.z);
-    float yaw = g.x * .38, pitch = -g.y * .26;
+    // the head turns at most about 25 degrees (including the fixed quarter turn below); the eyes do the rest
+    float yaw = clamp(g.x * .3, -.3, .3), pitch = clamp(-g.y * .22, -.22, .22);
     vec3 PIV = vec3(0., 0., -.25);
     vec3 T = vec3(g.x * 1.5, g.y * .95 + .1, 1.9);  // the point being looked at
     float grp = E.x;
@@ -86,11 +87,11 @@ vec3 form(float id, vec4 P, vec4 E, vec4 S) {
       else if (E.y < 1.5) { gSize = 1.25; gAlpha = .95; gCol = ramp(.5); }
       else { gSize = .95; gAlpha = .95; gCol = ramp(.36 + tone * .25); }
     } else if (grp < 1.5) {                        // irises turn inside the eye
-      vec3 c = vec3(E.y * EYE.x, EYE.y, EYE.z) + vec3(g.x * .06, g.y * .032, 0.);
+      vec3 c = vec3(E.y * EYE.x, EYE.y, EYE.z) + vec3(g.x * .078, g.y * .04, 0.);
       p = rotX(rotY(c + p - PIV, yaw), pitch) + PIV;
       gSize = 1.05; gAlpha = 1.; gCol = ramp(.97);
     } else if (grp < 2.5) {                        // gaze lines from each eye to the target
-      vec3 c = vec3(E.z * EYE.x, EYE.y, EYE.z) + vec3(g.x * .06, g.y * .032, 0.);
+      vec3 c = vec3(E.z * EYE.x, EYE.y, EYE.z) + vec3(g.x * .078, g.y * .04, 0.);
       c = rotX(rotY(c - PIV, yaw), pitch) + PIV;
       float s = E.y;
       p = mix(c, T, s) + p * (.4 + s);
@@ -105,7 +106,7 @@ vec3 form(float id, vec4 P, vec4 E, vec4 S) {
       p = vec3(p.x, p.y, 0.) * (1.15 + ph * 1.5) + vec3(0., 0., -.3);
       gAlpha = .42 * (1. - ph) * smoothstep(0., .08, ph); gSize = .7; gCol = ramp(.5);
     }
-    p = rotY(p, .16) * 1.65;
+    p = rotY(p, .12) * 1.65;
   } else if (id < 3.5) {                           // 3 candlestick landscape
     float sgn = E.y, colx = E.z, ph = E.w, kind = E.x;
     float depth = mix(.38, 1., smoothstep(-1.7, 1.7, p.z));   // the far series sit back

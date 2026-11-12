@@ -280,7 +280,8 @@ export class PointField {
     const wide = this.aspect > 1.05;
     // the star field sits behind long reading sections: keep it quiet there
     if (form === 'stars' && kind === 'center') return { side: 0, edge: 0, soft: 0.1, k: 0, dim: 0.45 };
-    if (!wide) return { side: 0, edge: 0, soft: 0.1, k: 0, dim: kind === 'hero' || form === 'name' ? 0 : 0.5 };
+    // on narrow screens the form sits behind the copy: the bright line-drawn pieces are dimmed harder so text stays readable
+    if (!wide) return { side: 0, edge: 0, soft: 0.1, k: 0, dim: kind === 'hero' || form === 'name' ? 0 : form === 'face' || form === 'candles' ? 0.74 : 0.5 };
     if (kind === 'right') return { side: -1, edge: 0.04, soft: 0.13, k: 0.9, dim: 0 };
     if (kind === 'left') return { side: 1, edge: -0.04, soft: 0.13, k: 0.9, dim: 0 };
     return { side: 0, edge: 0, soft: 0.1, k: 0, dim: 0 };
