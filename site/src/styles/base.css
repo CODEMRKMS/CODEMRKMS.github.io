@@ -31,7 +31,7 @@ code { font-family: ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace; f
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* ---------- the canvas and its static fallback ---------- */
-#field { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; display: block; }
+#field { position: fixed; inset: 0 0 auto 0; width: 100%; height: 100vh; height: 100lvh; z-index: 0; pointer-events: none; display: block; }
 html:not(.gl) #field { display: none; }
 .sky { position: fixed; inset: 0; z-index: 0; pointer-events: none; display: none;
   background-image:

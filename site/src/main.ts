@@ -60,7 +60,7 @@ async function boot() {
     // wait (briefly) for the display font so the wordmark is sampled from the real glyphs
     const fontReady = Promise.race([
       document.fonts.load('800 120px Anybody').catch(() => undefined),
-      new Promise((r) => setTimeout(r, 1600)),
+      new Promise((r) => setTimeout(r, 900)),
     ]);
     await fontReady;
     await field.build('Anybody, "Arial Black", sans-serif');
@@ -81,6 +81,7 @@ async function boot() {
   root.classList.add('is-ready');
 }
 
-// Let the first paint (the real HTML text) happen before any WebGL work starts.
-const start = () => (window.requestIdleCallback ? window.requestIdleCallback(() => void boot(), { timeout: 1500 }) : setTimeout(() => void boot(), 300));
-if (document.readyState === 'complete') start(); else window.addEventListener('load', start, { once: true });
+// Let the first paint (the real HTML text) happen, then start. Nothing here waits for window.load,
+// so a slow third-party request or image can no longer hold the scene back.
+const start = () => requestAnimationFrame(() => (window.requestIdleCallback ? window.requestIdleCallback(() => void boot(), { timeout: 400 }) : setTimeout(() => void boot(), 60)));
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true }); else start();

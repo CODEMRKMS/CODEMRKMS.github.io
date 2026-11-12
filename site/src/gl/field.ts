@@ -89,6 +89,7 @@ export class PointField {
   private ptr = { x: 0, y: 0, a: 0, nx: 0, ny: 0 };
   private lastMove = 0;
   private dollyZ = { z: CAM_Z };
+  private tmp = new Vector3();
   private beat = 0;
   private beatRate = 0.55;
   beatFast = false;
@@ -143,7 +144,8 @@ export class PointField {
     this.setTheme('night');
     this.resize();
 
-    window.addEventListener('resize', () => this.resize(), { passive: true });
+    let rz = 0;
+    window.addEventListener('resize', () => { clearTimeout(rz); rz = window.setTimeout(() => this.resize(), 120); }, { passive: true });
     window.addEventListener('pointermove', (e) => this.onPointer(e), { passive: true });
     window.addEventListener('pointerdown', (e) => this.onPointer(e), { passive: true });
     document.addEventListener('visibilitychange', () => {
@@ -155,6 +157,7 @@ export class PointField {
       }).observe(canvas);
     }
     canvas.addEventListener('webglcontextlost', (e) => e.preventDefault());
+    canvas.addEventListener('webglcontextrestored', () => { this.sizeW = 0; this.resize(); });
   }
 
   /* ---------- shapes ---------- */
@@ -387,7 +390,7 @@ export class PointField {
   /** screen position (css px) of award star i, for labels */
   projectStar(i: number, out: { x: number; y: number }) {
     const p = AWARD_STARS[i];
-    const v = new Vector3(p[0] * this.layout.s + this.layout.x, p[1] * this.layout.s + this.layout.y, p[2] * this.layout.s);
+    const v = this.tmp.set(p[0] * this.layout.s + this.layout.x, p[1] * this.layout.s + this.layout.y, p[2] * this.layout.s);
     this.camera.updateMatrixWorld();
     v.project(this.camera);
     out.x = (v.x * 0.5 + 0.5) * this.canvas.clientWidth;
@@ -395,12 +398,15 @@ export class PointField {
   }
 
   /* ---------- sizing + loop ---------- */
+  private sizeW = 0;
+  private sizeH = 0;
   resize() {
-    const w = window.innerWidth, h = window.innerHeight;
+    // the canvas is sized in CSS to the large viewport, so a phone's address bar sliding away is not a resize
+    const w = this.canvas.clientWidth || window.innerWidth, h = this.canvas.clientHeight || window.innerHeight;
+    if (w === this.sizeW && h === this.sizeH) return;
+    this.sizeW = w; this.sizeH = h;
     this.renderer.setPixelRatio(this.dpr);
     this.renderer.setSize(w, h, false);
-    this.canvas.style.width = '100%';
-    this.canvas.style.height = '100%';
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.mat.uniforms.uPR.value = this.dpr;
@@ -422,7 +428,7 @@ export class PointField {
       if (this.dpr > 1.01) {
         this.dpr = Math.max(1, this.dpr - 0.25);
         this.renderer.setPixelRatio(this.dpr);
-        this.renderer.setSize(window.innerWidth, window.innerHeight, false);
+        this.renderer.setSize(this.sizeW, this.sizeH, false);
         this.mat.uniforms.uPR.value = this.dpr;
       } else if (this.lowDraw > 0.5) {
         this.lowDraw -= 0.15;

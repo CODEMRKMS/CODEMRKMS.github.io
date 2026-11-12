@@ -5,6 +5,7 @@ import type Lenis from 'lenis';
 import type { PointField, Target, Kind } from './gl/field';
 import type { FormName } from './gl/shapes';
 import { startMic } from './mic';
+import { trackDisplays } from './type';
 
 gsap.registerPlugin(ScrollTrigger, SplitText);
 
@@ -34,6 +35,7 @@ export function readTarget(main: Element): Target {
 export function initPage(main: HTMLElement, ctx: Ctx, opts: { first: boolean }): PageHandle {
   const { field, reduced } = ctx;
   const cleanups: (() => void)[] = [];
+  trackDisplays(main);
   const triggers: ScrollTrigger[] = [];
   const splits: { el: HTMLElement; st: SplitText; revealed: boolean }[] = [];
 
@@ -42,6 +44,7 @@ export function initPage(main: HTMLElement, ctx: Ctx, opts: { first: boolean }):
     main.querySelectorAll<HTMLElement>('[data-split]').forEach((el) => {
       if (inView(el)) return; // first-screen text is handled by the intro / the router
       const st = splitLines(el);
+      if (!st.lines.length) { st.revert(); return; }
       gsap.set(st.lines, { yPercent: 110 });
       const rec = { el, st, revealed: false };
       splits.push(rec);
@@ -50,7 +53,7 @@ export function initPage(main: HTMLElement, ctx: Ctx, opts: { first: boolean }):
           trigger: el, start: 'top 90%', once: true,
           onEnter: () => {
             rec.revealed = true;
-            gsap.to(st.lines, { yPercent: 0, duration: 0.95, stagger: 0.07, ease: 'power3.out' });
+            if (rec.st.lines.length) gsap.to(rec.st.lines, { yPercent: 0, duration: 0.95, stagger: 0.07, ease: 'power3.out' });
           },
         }),
       );
@@ -64,7 +67,7 @@ export function initPage(main: HTMLElement, ctx: Ctx, opts: { first: boolean }):
       t = window.setTimeout(() => {
         splits.forEach((r) => {
           r.st.revert();
-          if (!r.revealed) { r.st = splitLines(r.el); gsap.set(r.st.lines, { yPercent: 110 }); }
+          if (!r.revealed) { r.st = splitLines(r.el); if (r.st.lines.length) gsap.set(r.st.lines, { yPercent: 110 }); }
         });
         ScrollTrigger.refresh();
       }, 260);
@@ -101,9 +104,13 @@ export function initPage(main: HTMLElement, ctx: Ctx, opts: { first: boolean }):
   if (stage && field) {
     const items = Array.from(stage.querySelectorAll<HTMLElement>('[data-star]'));
     const pt = { x: 0, y: 0 };
-    const wide = () => window.matchMedia('(min-width: 900px)').matches;
+    const mq = window.matchMedia('(min-width: 900px)');
+    let near = false;
+    const io = new IntersectionObserver((en) => { near = en[en.length - 1].isIntersecting; }, { rootMargin: '20% 0px' });
+    io.observe(stage);
+    cleanups.push(() => io.disconnect());
     const place = () => {
-      if (!wide() || field.target.form !== 'stars' || !inView(stage, 1.2)) { stage.classList.remove('is-placed'); return; }
+      if (!near || !mq.matches || field.target.form !== 'stars') { if (stage.classList.contains('is-placed')) stage.classList.remove('is-placed'); return; }
       stage.classList.add('is-placed');
       const r = stage.getBoundingClientRect();
       for (const li of items) {
