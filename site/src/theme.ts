@@ -5,7 +5,7 @@ export function currentTheme(): Theme {
 }
 
 /** Wires the toggle button. The initial theme was already applied by the inline script in <head>. */
-export function initTheme(onChange: (t: Theme) => void) {
+export function initTheme(onChange: (t: Theme, animate: boolean) => void, reduced = false) {
   const btn = document.querySelector<HTMLButtonElement>('.theme-toggle');
   const label = btn?.querySelector<HTMLElement>('[data-theme-label]');
   const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
@@ -15,12 +15,20 @@ export function initTheme(onChange: (t: Theme) => void) {
     btn?.setAttribute('aria-label', t === 'night' ? 'Switch to daylight theme' : 'Switch to night theme');
     meta?.setAttribute('content', t === 'night' ? '#0C0E14' : '#F3EFE6');
   };
+  let timer = 0;
   paint(currentTheme());
-  onChange(currentTheme());
+  onChange(currentTheme(), false);
   btn?.addEventListener('click', () => {
     const next: Theme = currentTheme() === 'night' ? 'day' : 'night';
+    // the colour tokens are registered properties, so they can travel with the scene's lighting for 1.6 s
+    const root = document.documentElement;
+    if (!reduced) {
+      root.classList.add('theme-anim');
+      clearTimeout(timer);
+      timer = window.setTimeout(() => root.classList.remove('theme-anim'), 1750);
+    }
     paint(next);
     try { localStorage.setItem('theme', next); } catch { /* storage unavailable */ }
-    onChange(next);
+    onChange(next, !reduced);
   });
 }

@@ -88,8 +88,24 @@ in this file; `PLAN.md`, `DESIGN.md` and `REVIEW.md` still describe v1 and have 
 - With reduced motion only the console and the terminal exist, and the terminal's animations are off.
 - `node scripts/eggs.mjs <outDir>` is a smoke test of all of the above.
 
+**Item 5: interaction and motion**
+- Daylight: `field.setTheme(t, true)` tweens `day.v` for 1.6 s; `applyDay` interpolates palette, size, alpha and
+  background, and drives a sun and warm horizon in the background quad (both zero at rest). Points use one
+  premultiplied blend (`ONE, ONE_MINUS_SRC_ALPHA`) with alpha scaled by `uDay`, so additive night and ink-on-paper
+  day are the two ends of one mode. CSS tokens are registered with `@property` and transition for the same 1.6 s
+  (`html.theme-anim`); browsers without `@property` switch instantly.
+- Router: `dissolve.ts` steps a tiling noise mask across `<main>` (out 0.6 s, in 0.85 s) while `field.dissolve` /
+  `resolve` fly the camera (z, sideways drift and roll). Fixed on the way: a new page now really starts at the top
+  (ScrollTrigger was restoring the previous page's scroll on refresh).
+- Pointer: repel, swirl (`uSwirl`) and carry (`uPtrVel`) scale with pointer speed; touch drags feed the same path.
+- `motion.ts`: count-up on `.fig-n` (sr-only real value while it runs, original text restored), magnetic
+  `.btn/.cta/.mail/.theme-toggle`, tilt on `.fig/.next-link/.portrait`. Headings split into chars inside line masks.
+- `cursor.ts`: custom cursor, fine pointers only, lazy. States link / view / open / drag; native for text fields,
+  dialogs and after Tab.
+- `node scripts/motion.mjs <outDir>` (TIER=high for the post path) captures the theme change, cursor, count-up
+  and a page transition.
+
 ## Known issues
-- Daylight still uses the v1 instant palette swap (no sun arc, no premultiplied blend). That is Step 2 work.
 - No 404 page yet. `old-site/` is dead code still in the repo.
 - A `vite preview` process from this session may still be listening on port 4173.
 

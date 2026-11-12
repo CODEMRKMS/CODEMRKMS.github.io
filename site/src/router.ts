@@ -2,6 +2,7 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import type Lenis from 'lenis';
 import { initPage, inView, splitLines, textBlocks, type Ctx, type PageHandle } from './page';
+import { dissolveEl } from './dissolve';
 
 const ROUTES = new Set(['/', '/work/proctoring/', '/work/quant-trading/', '/work/voicepay/', '/experience/', '/about/']);
 
@@ -112,10 +113,11 @@ export class Router {
       await this.crossfade(() => this.swap(next, url, push));
     } else {
       // the form dissolves into noise while the text leaves; the new page's route is installed under the noise
-      await Promise.all([this.exitText(dir), field?.dissolve(dir)]);
+      // the page dissolves into noise while the camera flies into the cloud; the swap happens under cover
+      await Promise.all([dissolveEl(this.main, 1, 0, 0.6), field?.dissolve(dir)]);
       this.swap(next, url, push);
       field?.resolve(dir);
-      await this.enterText(dir);
+      await Promise.all([dissolveEl(this.main, 0, 1, 0.85), this.enterText(dir)]);
     }
     document.documentElement.classList.remove('is-transitioning');
     this.busy = false;
@@ -124,24 +126,11 @@ export class Router {
     if (q && q.url.pathname !== location.pathname) void this.go(q.url, q.dir, q.push);
   }
 
-  /* ---- exit: visible text leaves through its own mask, line by line ---- */
-  private exitText(dir: 1 | -1): Promise<void> {
-    const out = dir > 0 ? -112 : 112;
-    const tl = gsap.timeline();
-    const blocks = textBlocks(this.main).filter((el) => inView(el));
-    const lines: Element[] = [];
-    for (const el of blocks) lines.push(...splitLines(el).lines);
-    if (lines.length) tl.to(lines, { yPercent: out, duration: 0.55, ease: 'power2.in', stagger: { each: 0.03, from: dir > 0 ? 'start' : 'end' } });
-    const media = Array.from(this.main.querySelectorAll<HTMLElement>('.media, .fig, .rule-row')).filter((el) => inView(el));
-    if (media.length) tl.to(media, { clipPath: dir > 0 ? 'inset(0 0 100% 0)' : 'inset(100% 0 0 0)', duration: 0.5, ease: 'power2.in', stagger: 0.05 }, 0.05);
-    tl.set(this.main, { visibility: 'hidden' });
-    return tl.then().then(() => undefined);
-  }
-
   /* ---- swap the content ---- */
   private swap(next: Loaded, url: URL, push: boolean) {
     this.page?.destroy();
     const fresh = document.importNode(next.main, true) as HTMLElement;
+    if (!this.ctx.reduced) fresh.style.visibility = 'hidden'; // stays covered until the dissolve brings it in
     this.main.replaceWith(fresh);
     this.main = fresh;
     document.title = next.title;
@@ -153,40 +142,28 @@ export class Router {
     if (push) history.pushState({}, '', url.pathname + url.hash);
     this.current = url.pathname;
     this.mark(url.pathname);
-    window.scrollTo(0, 0);
-    this.ctx.lenis?.scrollTo(0, { immediate: true, force: true });
+    // a new page starts at the top. ScrollTrigger remembers the old position and would put it back on refresh, so forget it first
+    const top = () => { window.scrollTo(0, 0); this.ctx.lenis?.scrollTo(0, { immediate: true, force: true }); };
+    ScrollTrigger.clearScrollMemory();
+    top();
     ScrollTrigger.refresh();
+    top();
     this.page = initPage(this.main, this.ctx, { first: false });
     if (url.hash) this.scrollToHash(url.hash, true);
     fresh.focus({ preventScroll: true });
   }
 
-  /* ---- enter: headline and visible copy assemble through masks ---- */
+  /* ---- enter: the headline assembles through its line masks while the rest condenses out of the noise ---- */
   private async enterText(dir: 1 | -1): Promise<void> {
     const from = dir > 0 ? 110 : -110;
-    const blocks = textBlocks(this.main).filter((el) => inView(el));
-    const heads = blocks.filter((e) => /^H[1-3]$/.test(e.tagName) || e.dataset.split !== undefined);
-    const rest = blocks.filter((e) => !heads.includes(e));
-    const tl = gsap.timeline();
+    const heads = textBlocks(this.main).filter((el) => inView(el) && (/^H[1-3]$/.test(el.tagName) || el.dataset.split !== undefined));
+    const lines: Element[] = [];
     const sts: { revert(): void }[] = [];
-    const run = (els: HTMLElement[], at: number, each: number) => {
-      const lines: Element[] = [];
-      for (const el of els) { const st = splitLines(el); sts.push(st); lines.push(...st.lines); }
-      if (!lines.length) return;
-      gsap.set(lines, { yPercent: from });
-      tl.to(lines, { yPercent: 0, duration: 0.85, ease: 'power3.out', stagger: each }, at);
-    };
-    run(heads, 0, 0.07);
-    run(rest, 0.18, 0.035);
-    const media = Array.from(this.main.querySelectorAll<HTMLElement>('.media, .fig, .rule-row')).filter((el) => inView(el));
-    if (media.length) {
-      gsap.set(media, { clipPath: 'inset(0 0 100% 0)' });
-      tl.to(media, { clipPath: 'inset(0 0 0% 0)', duration: 0.8, ease: 'power3.out', stagger: 0.06 }, 0.2);
-    }
-    gsap.set(this.main, { visibility: 'visible' });
-    await tl.then();
+    for (const el of heads) { const st = splitLines(el); sts.push(st); lines.push(...st.lines); }
+    if (!lines.length) return;
+    gsap.set(lines, { yPercent: from });
+    await gsap.to(lines, { yPercent: 0, duration: 0.85, ease: 'power3.out', stagger: 0.06, delay: 0.1 }).then();
     sts.forEach((st) => st.revert());
-    if (media.length) gsap.set(media, { clearProps: 'clipPath' });
   }
 
   private async crossfade(swap: () => void) {

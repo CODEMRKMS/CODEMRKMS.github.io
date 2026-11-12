@@ -6,6 +6,7 @@ import type { PointField, Kind, Station } from './gl/field';
 import type { FormName } from './gl/shapes';
 import { startMic } from './mic';
 import { trackDisplays } from './type';
+import { countUps, hover } from './motion';
 
 gsap.registerPlugin(ScrollTrigger, SplitText);
 
@@ -17,6 +18,12 @@ const TEXT_SEL = 'h1,h2,h3,p,li,dt,dd,figcaption,.fig-n';
 export function splitLines(el: HTMLElement) {
   return SplitText.create(el, { type: 'lines', mask: 'lines', linesClass: 'ln', aria: 'none' });
 }
+/** headings come in letter by letter inside their line masks; the heading keeps its text as its accessible name */
+function splitHeading(el: HTMLElement) {
+  return SplitText.create(el, { type: 'lines,chars', mask: 'lines', linesClass: 'ln', aria: 'auto' });
+}
+const isHeading = (el: HTMLElement) => el.classList.contains('display');
+const pieces = (el: HTMLElement, st: SplitText) => (isHeading(el) ? st.chars : st.lines);
 export function inView(el: Element, margin = 0.96) {
   const r = el.getBoundingClientRect();
   return r.bottom > 0 && r.top < window.innerHeight * margin && r.height > 0;
@@ -24,7 +31,8 @@ export function inView(el: Element, margin = 0.96) {
 /** leaf text blocks (an li that holds a p is not a leaf), skipping visually hidden ones */
 export function textBlocks(root: Element): HTMLElement[] {
   const all = Array.from(root.querySelectorAll<HTMLElement>(TEXT_SEL)).filter((e) => !e.closest('.sr-only') && !e.classList.contains('sr-only'));
-  return all.filter((e) => !all.some((o) => o !== e && e.contains(o)));
+  // stat blocks move as one piece (and count up on their own), so their text is not split
+  return all.filter((e) => !e.closest('.fig') && !all.some((o) => o !== e && e.contains(o)));
 }
 
 /** the sections that own a form, in page order: these are the stations the camera visits */
@@ -44,9 +52,9 @@ export function initPage(main: HTMLElement, ctx: Ctx, opts: { first: boolean }):
   const prepareReveals = () => {
     main.querySelectorAll<HTMLElement>('[data-split]').forEach((el) => {
       if (inView(el)) return; // first-screen text is handled by the intro / the router
-      const st = splitLines(el);
+      const st = isHeading(el) ? splitHeading(el) : splitLines(el);
       if (!st.lines.length) { st.revert(); return; }
-      gsap.set(st.lines, { yPercent: 110 });
+      gsap.set(pieces(el, st), { yPercent: 110 });
       const rec = { el, st, revealed: false };
       splits.push(rec);
       triggers.push(
@@ -54,7 +62,8 @@ export function initPage(main: HTMLElement, ctx: Ctx, opts: { first: boolean }):
           trigger: el, start: 'top 90%', once: true,
           onEnter: () => {
             rec.revealed = true;
-            if (rec.st.lines.length) gsap.to(rec.st.lines, { yPercent: 0, duration: 0.95, stagger: 0.07, ease: 'power3.out' });
+            const head = isHeading(rec.el), ps = pieces(rec.el, rec.st);
+            if (ps.length) gsap.to(ps, { yPercent: 0, duration: head ? 0.8 : 0.95, stagger: head ? 0.022 : 0.07, ease: 'power3.out' });
           },
         }),
       );
@@ -68,13 +77,18 @@ export function initPage(main: HTMLElement, ctx: Ctx, opts: { first: boolean }):
       t = window.setTimeout(() => {
         splits.forEach((r) => {
           r.st.revert();
-          if (!r.revealed) { r.st = splitLines(r.el); if (r.st.lines.length) gsap.set(r.st.lines, { yPercent: 110 }); }
+          if (!r.revealed) { r.st = isHeading(r.el) ? splitHeading(r.el) : splitLines(r.el); if (r.st.lines.length) gsap.set(pieces(r.el, r.st), { yPercent: 110 }); }
         });
         ScrollTrigger.refresh();
       }, 260);
     };
     window.addEventListener('resize', onResize, { passive: true });
     cleanups.push(() => window.removeEventListener('resize', onResize));
+  }
+
+  if (!reduced) {
+    triggers.push(...countUps(main));
+    cleanups.push(hover(main));
   }
 
   /* ----- forms follow the sections ----- */

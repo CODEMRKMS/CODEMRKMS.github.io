@@ -8,6 +8,21 @@
   src: url('/fonts/instrument-sans-latin.woff2') format('woff2');
 }
 
+/* registered as colours so a theme change can interpolate them in step with the scene */
+@property --bg { syntax: '<color>'; inherits: true; initial-value: #0c0e14; }
+@property --fg { syntax: '<color>'; inherits: true; initial-value: #ece8e1; }
+@property --fg-2 { syntax: '<color>'; inherits: true; initial-value: #a9a8ae; }
+@property --rule { syntax: '<color>'; inherits: true; initial-value: rgba(236, 232, 225, 0.16); }
+@property --accent { syntax: '<color>'; inherits: true; initial-value: #f2a541; }
+@property --on-accent { syntax: '<color>'; inherits: true; initial-value: #0c0e14; }
+@property --p2 { syntax: '<color>'; inherits: true; initial-value: #2bb3a3; }
+@property --p3 { syntax: '<color>'; inherits: true; initial-value: #f2a541; }
+html.theme-anim {
+  transition: --bg 1.6s cubic-bezier(0.37, 0, 0.63, 1), --fg 1.6s cubic-bezier(0.37, 0, 0.63, 1), --fg-2 1.6s cubic-bezier(0.37, 0, 0.63, 1),
+    --rule 1.6s cubic-bezier(0.37, 0, 0.63, 1), --accent 1.6s cubic-bezier(0.37, 0, 0.63, 1), --on-accent 1.6s cubic-bezier(0.37, 0, 0.63, 1),
+    --p2 1.6s cubic-bezier(0.37, 0, 0.63, 1), --p3 1.6s cubic-bezier(0.37, 0, 0.63, 1);
+}
+
 :root {
   color-scheme: dark;
   --bg: #0c0e14;

@@ -1,13 +1,14 @@
 import {
-  AdditiveBlending,
   BufferAttribute,
   BufferGeometry,
   Color,
+  CustomBlending,
   InterleavedBuffer,
   InterleavedBufferAttribute,
   Mesh,
   NoBlending,
-  NormalBlending,
+  OneFactor,
+  OneMinusSrcAlphaFactor,
   PerspectiveCamera,
   Points,
   Scene,
@@ -104,7 +105,9 @@ export class PointField {
   private ptrTarget = { x: 0, y: 0, a: 0 };
   private ptr = { x: 0, y: 0, a: 0 };
   private lastMove = 0;
-  private dollyZ = { z: 0 };
+  private dollyZ = { z: 0, x: 0, roll: 0 };
+  private day = { v: 0 }; // 0 night .. 1 Daylight
+  private pv = { x: 0, y: 0, rx: 0, ry: 0, lx: 0, ly: 0, lt: 0 }; // pointer velocity (ndc per second): smoothed, raw, last sample
   private chaos = { v: 1 };
   private beat = 0;
   private beatRate = 0.55;
@@ -140,9 +143,19 @@ export class PointField {
     this.N = this.quality.points;
     this.dpr = Math.min(window.devicePixelRatio || 1, this.quality.level.dpr);
     this.bgMat = new ShaderMaterial({
-      vertexShader: 'void main() { gl_Position = vec4(position.xy, 1., 1.); }',
-      fragmentShader: 'precision highp float; uniform vec3 uBg; void main() { gl_FragColor = vec4(uBg, 1.); }',
-      uniforms: { uBg: { value: this.bg } }, depthTest: false, depthWrite: false, blending: NoBlending,
+      vertexShader: 'varying vec2 vUv; void main() { vUv = position.xy * .5 + .5; gl_Position = vec4(position.xy, 1., 1.); }',
+      // the sky: flat background colour, plus a sun and a warm horizon that exist only while the theme is changing
+      fragmentShader: `precision highp float; uniform vec3 uBg; uniform vec3 uSun; uniform float uAspect; varying vec2 vUv;
+        void main() {
+          vec3 c = uBg;
+          if (uSun.z > 0.) {
+            vec2 d = (vUv - uSun.xy) * vec2(uAspect, 1.);
+            float r = length(d);
+            c += uSun.z * (vec3(1., .62, .3) * (exp(-r * r * 7.) * .42 + smoothstep(.05, .035, r) * .55) + vec3(.55, .2, .08) * pow(1. - vUv.y, 3.) * .34);
+          }
+          gl_FragColor = vec4(c, 1.);
+        }`,
+      uniforms: { uBg: { value: this.bg }, uSun: { value: new Vector3() }, uAspect: { value: 1 } }, depthTest: false, depthWrite: false, blending: NoBlending,
     });
     const bgGeo = new BufferGeometry();
     bgGeo.setAttribute('position', new BufferAttribute(new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]), 3));
@@ -168,7 +181,7 @@ export class PointField {
       transparent: true,
       depthTest: false,
       depthWrite: false,
-      blending: AdditiveBlending,
+      blending: CustomBlending, blendSrc: OneFactor, blendDst: OneMinusSrcAlphaFactor,
       uniforms: {
         ...shared,
         uProgress: { value: 0 }, uScroll: { value: 0 }, uSection: { value: 0 }, uChaos: { value: 1 }, uBeat: { value: 0 },
@@ -176,7 +189,7 @@ export class PointField {
         uFormA: { value: 0 }, uFormB: { value: 0 }, uTurb: { value: 1 }, uDrift: { value: reduced ? 0 : 1 },
         uLayoutA: { value: new Vector3(1, 0, 0) }, uLayoutB: { value: new Vector3(1, 0, 0) },
         uStationA: { value: new Vector3() }, uStationB: { value: new Vector3() }, uFocus: { value: new Vector3() },
-        uPointer: { value: new Vector4(0, 0, 0, 1.15) },
+        uPointer: { value: new Vector4(0, 0, 0, 1.15) }, uSwirl: { value: 0 }, uPtrVel: { value: new Vector2() },
         uDens: { value: Math.min(1.5, Math.pow(40000 / this.N, 0.33)) }, uRepel: { value: 1 },
         uGaze: { value: new Vector3() }, uHead: { value: new Vector3() }, uFace: { value: new Vector4(0, 0, 0, 9) }, uEye: { value: new Vector2() }, uBox: { value: new Vector4(0, 0, 1, 1.1) }, uPipe: { value: new Vector3() }, uNameHide: { value: 0 }, uVol: { value: 0 }, uEnergy: { value: 0 }, uBeatAmt: { value: 0 },
         uTextMask: { value: new Vector4(0, 0, 0.12, 0) },
@@ -188,7 +201,7 @@ export class PointField {
       transparent: true,
       depthTest: false,
       depthWrite: false,
-      blending: AdditiveBlending,
+      blending: CustomBlending, blendSrc: OneFactor, blendDst: OneMinusSrcAlphaFactor,
       uniforms: { ...shared, uSceneDim: { value: 1 } },
     });
 
@@ -211,6 +224,10 @@ export class PointField {
     window.addEventListener('resize', () => { clearTimeout(rz); rz = window.setTimeout(() => this.resize(), 120); }, { passive: true });
     window.addEventListener('pointermove', (e) => this.onPointer(e), { passive: true });
     window.addEventListener('pointerdown', (e) => this.onPointer(e), { passive: true });
+    // a finger that is scrolling gets no pointermove events, so touches are followed directly
+    const touch = (e: TouchEvent) => { const t = e.touches[0]; if (t) this.point(t.clientX, t.clientY); };
+    window.addEventListener('touchstart', touch, { passive: true });
+    window.addEventListener('touchmove', touch, { passive: true });
     document.addEventListener('visibilitychange', () => { this.visible = !document.hidden; });
     canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); this.painted = false; document.documentElement.classList.remove('gl-on'); });
     canvas.addEventListener('webglcontextrestored', () => { this.sizeW = 0; this.resize(); });
@@ -409,40 +426,58 @@ export class PointField {
     gsap.killTweensOf(this.dollyZ);
     const tl = gsap.timeline();
     tl.to(this.chaos, { v: 1, duration: 0.6, ease: 'power2.in' }, 0)
-      .to(this.dollyZ, { z: dir > 0 ? -4.6 : 4, duration: 0.6, ease: 'power2.in' }, 0);
+      .to(this.dollyZ, { z: dir > 0 ? -9 : 7, x: 2.4 * dir, roll: 0.14 * dir, duration: 0.6, ease: 'power2.in' }, 0);
     return tl.then().then(() => undefined);
   }
   /** page change, second half: the cloud condenses into the new page's first form */
   resolve(dir: 1 | -1) {
-    if (this.reduced) { this.chaos.v = 0; this.dirty = true; return; }
+    if (this.reduced) { this.chaos.v = 0; this.dollyZ.z = this.dollyZ.x = this.dollyZ.roll = 0; this.dirty = true; return; }
     gsap.killTweensOf(this.chaos);
     gsap.killTweensOf(this.dollyZ);
     this.chaos.v = 1;
-    this.dollyZ.z = dir > 0 ? 4 : -4.6;
-    gsap.to(this.chaos, { v: 0, duration: 1.15, ease: 'power2.out' });
-    gsap.to(this.dollyZ, { z: 0, duration: 1.15, ease: 'power3.out' });
+    // the camera arrives along the rail from the other side of the cloud it just flew into
+    this.dollyZ.z = dir > 0 ? 8 : -9; this.dollyZ.x = -2.4 * dir; this.dollyZ.roll = -0.14 * dir;
+    gsap.to(this.chaos, { v: 0, duration: 1.2, ease: 'power2.out' });
+    gsap.to(this.dollyZ, { z: 0, x: 0, roll: 0, duration: 1.25, ease: 'power3.out' });
   }
 
-  setTheme(t: 'night' | 'day') {
+  /** Night or Daylight. Animated, it is a change of lighting: the sun crosses the sky and every colour moves with it. */
+  setTheme(t: 'night' | 'day', animate = false) {
     this.theme = t;
-    const p = PALETTE[t], U = this.mat.uniforms;
-    U.uC0.value.set(p.c0); U.uC1.value.set(p.c1); U.uC2.value.set(p.c2); U.uNeutral.value.set(p.neutral);
-    U.uAlphaMul.value = p.alpha;
-    U.uDay.value = t === 'day' ? 1 : 0;
-    this.bg.set(p.bg[0] / 255, p.bg[1] / 255, p.bg[2] / 255);
-    U.uSize.value = p.size;
-    for (const m of [this.mat, this.sceneryMat]) {
-      m.blending = t === 'night' ? AdditiveBlending : NormalBlending;
-      m.needsUpdate = true;
-    }
+    const to = t === 'day' ? 1 : 0;
+    gsap.killTweensOf(this.day);
+    if (!animate || this.reduced) { this.day.v = to; this.applyDay(); }
+    else gsap.to(this.day, { v: to, duration: 1.6, ease: 'sine.inOut', onUpdate: () => this.applyDay() });
+  }
+  private pal = (['night', 'day'] as const).map((k) => ({ c0: new Color(PALETTE[k].c0), c1: new Color(PALETTE[k].c1), c2: new Color(PALETTE[k].c2), neutral: new Color(PALETTE[k].neutral) }));
+  private applyDay() {
+    const k = this.day.v, U = this.mat.uniforms, [n, d] = this.pal, N = PALETTE.night, D = PALETTE.day;
+    (U.uC0.value as Color).lerpColors(n.c0, d.c0, k); (U.uC1.value as Color).lerpColors(n.c1, d.c1, k);
+    (U.uC2.value as Color).lerpColors(n.c2, d.c2, k); (U.uNeutral.value as Color).lerpColors(n.neutral, d.neutral, k);
+    U.uAlphaMul.value = lerp(N.alpha, D.alpha, k);
+    U.uSize.value = lerp(N.size, D.size, k);
+    U.uDay.value = k;
+    // the sky warms on the way: dawn colours peak in the middle and are gone at both ends, where the bytes are exact
+    const mid = Math.sin(Math.PI * k), e = smooth(k);
+    this.bg.set(
+      lerp(N.bg[0], D.bg[0], e) / 255 + 0.09 * mid * (1 - 0.6 * k),
+      lerp(N.bg[1], D.bg[1], e) / 255 + 0.025 * mid * (1 - 0.6 * k),
+      lerp(N.bg[2], D.bg[2], e) / 255 - 0.02 * mid * (1 - k),
+    );
+    // the sun climbs an arc from below the horizon and leaves through the top of the frame as full daylight arrives
+    (this.bgMat.uniforms.uSun.value as Vector3).set(lerp(0.14, 0.8, k), -0.14 + 1.3 * Math.sin((k * Math.PI) / 2), k <= 0 || k >= 1 ? 0 : Math.pow(mid, 0.8));
     this.dirty = true;
   }
 
   /* ---------- pointer ---------- */
-  private onPointer(e: PointerEvent) {
-    this.ptrTarget.x = (e.clientX / window.innerWidth) * 2 - 1;
-    this.ptrTarget.y = -((e.clientY / window.innerHeight) * 2 - 1);
-    this.lastMove = performance.now();
+  private onPointer(e: PointerEvent) { this.point(e.clientX, e.clientY); }
+  private point(cx: number, cy: number) {
+    const x = (cx / window.innerWidth) * 2 - 1, y = -((cy / window.innerHeight) * 2 - 1);
+    const now = performance.now(), p = this.pv, dt = now - p.lt;
+    if (dt > 0 && dt < 120) { p.rx = ((x - p.lx) / dt) * 1000; p.ry = ((y - p.ly) / dt) * 1000; }
+    p.lx = x; p.ly = y; p.lt = now;
+    this.ptrTarget.x = x; this.ptrTarget.y = y;
+    this.lastMove = now;
     this.dirty = true;
   }
 
@@ -466,6 +501,7 @@ export class PointField {
     this.sizeW = w; this.sizeH = h;
     this.sizeBuffers();
     this.camera.aspect = w / h;
+    this.bgMat.uniforms.uAspect.value = w / h;
     this.camera.updateProjectionMatrix();
     // keep every station's layout valid for the new aspect
     for (const s of this.stops) { s.lay = this.layoutFor(s.name, s.kind); s.mask = this.maskFor(s.name, s.kind); }
@@ -539,7 +575,8 @@ export class PointField {
     this.ptr.x += (this.ptrTarget.x - this.ptr.x) * k;
     this.ptr.y += (this.ptrTarget.y - this.ptr.y) * k;
     const par = this.reduced ? 0 : 1;
-    this.camera.position.set(this.camPos.x + this.ptr.x * 0.28 * par, this.camPos.y + this.ptr.y * 0.16 * par, this.camPos.z + this.dollyZ.z);
+    this.camera.position.set(this.camPos.x + this.ptr.x * 0.28 * par + this.dollyZ.x, this.camPos.y + this.ptr.y * 0.16 * par, this.camPos.z + this.dollyZ.z);
+    roll += this.dollyZ.roll;
     this.camera.up.set(Math.sin(roll), Math.cos(roll), 0);
     this.camera.lookAt(this.look);
     this.camera.updateMatrixWorld();
@@ -686,7 +723,16 @@ export class PointField {
     this.fly(dt);
     U.uChaos.value = this.chaos.v;
     const halfH = Math.tan((FOV * Math.PI) / 360);
-    (U.uPointer.value as Vector4).set(this.ptr.x * halfH * this.aspect, this.ptr.y * halfH, this.reduced ? 0 : this.ptr.a, 1.15);
+    // repel and swirl follow how fast the pointer (or finger) is moving: a resting pointer leaves the form alone
+    const p = this.pv, still = performance.now() - this.lastMove > 70;
+    if (still) p.rx = p.ry = 0;
+    const kv = 1 - Math.pow(still ? 0.004 : 0.0002, dt);
+    p.x += (p.rx - p.x) * kv; p.y += (p.ry - p.y) * kv;
+    const sp = this.reduced ? 0 : Math.min(1, Math.hypot(p.x, p.y) / 2.4);
+    (U.uPointer.value as Vector4).set(this.ptr.x * halfH * this.aspect, this.ptr.y * halfH, sp, 1.15);
+    U.uSwirl.value = sp * (p.x >= 0 ? 1 : -1);
+    const carry = sp > 0 ? (0.4 * sp) / Math.max(0.001, Math.hypot(p.x, p.y)) : 0;
+    (U.uPtrVel.value as Vector2).set(p.x * carry, p.y * carry);
     U.uRipple.value = this.reduced ? 0 : this.ptr.a;
     U.uMic.value += (this.micLevel - U.uMic.value) * 0.35;
     // chromatic aberration follows scroll speed and is exactly zero at rest

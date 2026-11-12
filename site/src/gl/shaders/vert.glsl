@@ -15,7 +15,9 @@ const vec3 EYE = vec3(EYE_X, EYE_Y, EYE_Z);
 uniform vec3 uLayoutA, uLayoutB;   // scale, cx, cy of the form inside its station
 uniform vec3 uStationA, uStationB; // world position of the two stations being travelled between
 uniform vec3 uFocus;               // what the camera is looking at (centre of the noise cloud)
-uniform vec4 uPointer;  // view-space xy per unit depth, strength, radius
+uniform vec4 uPointer;  // view-space xy per unit depth, strength (pointer speed), radius
+uniform float uSwirl;   // signed: how hard points are spun around the pointer
+uniform vec2 uPtrVel;   // points near the pointer are carried a little way along its path
 uniform vec4 uTextMask; // side (-1 left, 0 none, 1 right), edge (ndc), softness, strength
 uniform vec3 uC0, uC1, uC2, uNeutral;
 uniform vec2 uBands[3];  // rows of the screen that copy covers (ndc y: top, bottom)
@@ -263,7 +265,8 @@ void main() {
   vec2 d = mv.xy - uPointer.xy * (-mv.z);
   float r2 = dot(d, d), R = uPointer.w;
   float f = exp(-r2 / (R * R)) * uPointer.z * uRepel;
-  mv.xy += d / (sqrt(r2) + .001) * f * .45;
+  vec2 nrm = d / (sqrt(r2) + .001);
+  mv.xy += nrm * f * .5 + vec2(-nrm.y, nrm.x) * f * uSwirl * .55 + uPtrVel * f;
   mv.z += f * .6;
 
   gl_Position = projectionMatrix * mv;

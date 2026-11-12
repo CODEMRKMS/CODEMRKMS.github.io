@@ -53,7 +53,7 @@ async function boot() {
   // ?debug exposes the field for inspection from the console and the capture scripts
   if (field && /[?&](debug|fps)/.test(location.search)) (window as unknown as { __field: PointField }).__field = field;
   if (field && /[?&]fps/.test(location.search)) void import('./fps').then((m) => m.initFps(field!));
-  initTheme((t) => field?.setTheme(t));
+  initTheme((t, animate) => field?.setTheme(t, animate), reduced);
 
   const ctx = { field, lenis, reduced };
   const router = new Router(ctx);
@@ -82,6 +82,11 @@ async function boot() {
     root.classList.add('gl-ready');
   }
   root.classList.add('is-ready');
+  // hover effects and the custom cursor are for mice and trackpads only, and never with reduced motion
+  if (!reduced && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+    void import('./cursor').then((m) => m.initCursor());
+    void import('./motion').then((m) => m.hover(document.querySelector<HTMLElement>('.site-header')!));
+  }
   // easter eggs are not needed to use the site: fetch them when the browser has nothing better to do
   const idle = window.requestIdleCallback ? (f: () => void) => window.requestIdleCallback(f, { timeout: 4000 }) : (f: () => void) => window.setTimeout(f, 1500);
   idle(() => void import('./eggs').then((m) => m.initEggs({ field, lenis, reduced })));

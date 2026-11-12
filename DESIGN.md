@@ -45,18 +45,31 @@ resolving into something that means something. Everything else stays quiet so th
 
 ## Motion
 * Intro: noise to wordmark in under 2.5s, skippable. Section morphs: 1.5s with per-point stagger up to 45% of the run.
-* Page change: lines of text leave through their own mask, the field morphs while the camera dollies through it
-  (z 8 to 2.4 to 8), then the new headline assembles through masks. About 1.7s in total.
-* Only headings and ledes reveal on scroll, and only by masked line. Body copy is not animated.
+* Page change: the page dissolves into noise while the form becomes a cloud and the camera flies into it along the
+  rail; the swap happens under cover; the new page condenses out of the noise as the camera arrives and the headline
+  assembles through its line masks. About 1.5s in total.
+* Headings reveal on scroll letter by letter inside masked lines; ledes by masked line. Body copy is not animated.
+* Stat figures count up once when they enter view. The final text is the authored text, and the real value is
+  available to assistive tech throughout.
+* Daylight is a change of lighting, 1.6s: a sun climbs an arc, the sky warms, the point palette and the CSS colour
+  tokens interpolate together, and points move from adding light to laying down ink.
 * `prefers-reduced-motion`: native scroll, no morph, no drift, no dolly; 150ms crossfade between pages.
 
 ## Interaction
-* Pointer displaces nearby points on the GPU. No custom cursor. Focus is a 2px amber outline with 3px offset.
-* Hover states are underline and colour changes only.
+* Pointer (and a dragging finger) pushes and swirls nearby points on the GPU, in proportion to its speed; a resting
+  pointer leaves the form alone. The face is exempt: there the pointer steers the gaze.
+* Custom cursor on fine pointers only: a small dot that grows into a ring over links and buttons and into an amber
+  disc that names the action ("view" for case studies, "open" for new tabs, mail and the PDF, "drag" for the letter
+  pile). Text fields, the terminal and keyboard navigation always get the native cursor; touch never sees it.
+* Focus is a 2px amber outline with 3px offset.
+* Hover: underline and colour changes, plus two small physical responses on fine pointers. Buttons and calls to
+  action are magnetic (they lean up to about 30% of the pointer's offset). Stat blocks, the next-project link and
+  the About portrait tilt a few degrees under the pointer (max 9, 5 for the link) and settle back. Nothing tilts or
+  moves with reduced motion or on touch.
 
 ## Banned
 Orbitron, mono `// LABEL` nav, tracked all-caps eyebrows, glitch/typewriter/scramble, cursor dots, scroll gauges,
-tilt cards, glass cards in a grid, gradient blobs, neon glow, fade-up on every block, emoji, arrows on every link,
+glass cards in a grid, gradient blobs, neon glow, fade-up on every block, emoji, arrows on every link,
 identical rounded shadow cards, connecting-line particle networks.
 
 ## Copy
