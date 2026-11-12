@@ -41,7 +41,7 @@ in this file; `PLAN.md`, `DESIGN.md` and `REVIEW.md` still describe v1 and have 
   bare background colour (fg-2 on bg is 7.6:1 in Daylight, 8:1 at night).
 - The form/copy side-by-side layout now needs 900 px as well as a landscape aspect, matching the CSS breakpoint.
 
-**Item 2 (second session): face rebuilt as a landmark mesh. Waiting for review of the screenshots.**
+**Item 2 (second session): face rebuilt as a landmark mesh (approved)**
 - Geometry is the MediaPipe canonical face model (468 landmarks, 898 triangles) in `gl/facemesh.ts`. Apache 2.0;
   the notice and licence text ship in `public/licenses/mediapipe.txt`. `faceGeo()` in `shapes.ts` cuts the eye and
   mouth openings, opens the lids a little, and computes normals, edges and blink travel.
@@ -54,9 +54,26 @@ in this file; `PLAN.md`, `DESIGN.md` and `REVIEW.md` still describe v1 and have 
 - Low tier (12k points or fewer): no labels, no gizmo. Pointer repel is almost off on the face (`uRepel`).
 - `node scripts/face.mjs <outDir> [night|day]` shoots the four review captures.
 
+**Item 3 (1d): post-processing, GPU tiers, ?fps**
+- `gl/post.ts`: scene into a target, thresholded bloom on a 2 to 4 level down/up chain, chromatic aberration from
+  scroll speed (zero at rest), grain and vignette applied only to what the particles added. Daylight flips the sign
+  (ink bleed) and cuts bloom to about a sixth.
+- The canvas is opaque (`alpha: false`) and the scene draws its own background quad. Sampled pixels are exactly
+  `#0C0E14` and `#F3EFE6`. The canvas stays hidden until its first frame (`html.gl-on`).
+- `gl/quality.ts`: tier (high 40k / mid 22k / low 12k points) from the renderer string, then a ladder of levels
+  (DPR cap 2, bloom levels, share of points drawn) driven by a 30-frame probe. It steps down after two slow windows
+  and back up after a run of good ones, waiting longer each time a step up fails. `?tier=high|mid|low`, `?n=`,
+  `?noadapt` override. Low tier has no post pass at all. A software renderer starts at 9k points, DPR 1.
+- `?fps` shows frame time, tier, level, points, DPR and bloom (`fps.ts`, lazy).
+- Face fixes from the review: the detection box is fitted every frame to the projected outline of the turned head
+  (`faceTick`, `uBox`); the read-out shows tracking rate (about 22 fps) and inference time (under 120 ms) from the
+  case study copy with a small wobble, not the page's frame rate.
+- Sweep at 375 / 768 / 1440 / 2560, night and Daylight. Fixed: year labels of far stations showing through other
+  sections, the pulse core burning out under bloom, stars crossing the awards list on phones, forms going faint
+  on tall screens (points now scale with viewport height).
+
 ## Known issues
 - Daylight still uses the v1 instant palette swap (no sun arc, no premultiplied blend). That is Step 2 work.
-- `adapt()` in `field.ts` still only steps quality down. `gl/quality.ts` in 1d replaces it.
 - No 404 page yet. `old-site/` is dead code still in the repo.
 - A `vite preview` process from this session may still be listening on port 4173.
 

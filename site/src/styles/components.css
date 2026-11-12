@@ -44,6 +44,10 @@
 .hud p:first-child { color: var(--p3); }
 .is-transitioning .hud { opacity: 0; }
 
+/* ?fps overlay */
+.fps { position: fixed; left: 12px; bottom: 12px; z-index: 60; pointer-events: none; margin: 0; padding: 8px 12px; border-radius: 6px; background: rgba(0, 0, 0, 0.78); color: #fff;
+  font: 500 12px / 1.5 ui-monospace, Menlo, Consolas, monospace; white-space: pre; }
+
 /* page change: while a transition runs, nothing else should react */
 .is-transitioning { cursor: progress; }
 .is-transitioning a { pointer-events: none; }

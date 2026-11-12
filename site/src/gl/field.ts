@@ -5,6 +5,8 @@ import {
   Color,
   InterleavedBuffer,
   InterleavedBufferAttribute,
+  Mesh,
+  NoBlending,
   NormalBlending,
   PerspectiveCamera,
   Points,
@@ -19,13 +21,15 @@ import gsap from 'gsap';
 import vert from './shaders/vert.glsl?raw';
 import frag from './shaders/frag.glsl?raw';
 import sceneryVert from './shaders/scenery.vert.glsl?raw';
-import { AWARD_STARS, FACE_BOX, FORM, FORM_COUNT, STRIDE, faceGeo, genSeeds, genWordmark, mulberry32, buildShapes, sampleText, type FormName } from './shapes';
+import { AWARD_STARS, FORM, FORM_COUNT, STRIDE, faceGeo, genSeeds, genWordmark, mulberry32, buildShapes, sampleText, type FormName } from './shapes';
+import { Post } from './post';
+import { Quality } from './quality';
 import { CAM_Z, buildScenery, placeStations, type Kind, type Station } from './rail';
 
 export type { Kind, Station };
 interface Layout { s: number; x: number; y: number }
 /** what the face tracker is reporting right now, and where its detection box is on screen (css px) */
-export interface FaceHud { yaw: number; pitch: number; gx: number; gy: number; conf: number; fps: number; x0: number; y0: number; x1: number; y1: number; kind: Kind }
+export interface FaceHud { yaw: number; pitch: number; gx: number; gy: number; conf: number; rate: number; infer: number; x0: number; y0: number; x1: number; y1: number; kind: Kind }
 interface Mask { side: number; edge: number; soft: number; k: number; dim: number; band: number }
 /** a station resolved for the current viewport */
 interface Stop { form: number; name: FormName; kind: Kind; w: Vector3; cam: Vector3; lay: Layout; mask: Mask; lateral: boolean }
@@ -35,10 +39,13 @@ const SIZE: Record<FormName, readonly [number, number]> = {
   stars: [8, 4.6], name: [6, 2.5], face: [5.2, 4.0], candles: [6.4, 4.4], voice: [4.6, 4.2], pipeline: [7.2, 3.5], docs: [5.6, 4.3], pulse: [3.4, 3.4],
 };
 
+// bg is written to the canvas as these exact bytes: #0C0E14 and #F3EFE6
 const PALETTE = {
-  night: { c0: '#5B5BD6', c1: '#2BB3A3', c2: '#F2A541', neutral: '#7F8A97', alpha: 1, size: 2.3 },
-  day: { c0: '#3A3AA8', c1: '#0E7F73', c2: '#C26F08', neutral: '#6F685C', alpha: 1.35, size: 2.0 },
+  night: { c0: '#5B5BD6', c1: '#2BB3A3', c2: '#F2A541', neutral: '#7F8A97', alpha: 1, size: 2.3, bg: [12, 14, 20] },
+  day: { c0: '#3A3AA8', c1: '#0E7F73', c2: '#C26F08', neutral: '#6F685C', alpha: 1.35, size: 2.0, bg: [243, 239, 230] },
 };
+// the head turns about a point behind the face (matches PIV in vert.glsl)
+const PIV_Y = -0.15, PIV_Z = -0.6;
 
 const smooth = (t: number) => t * t * (3 - 2 * t);
 const smoother = (t: number) => t * t * t * (t * (t * 6 - 15) + 10);
@@ -53,19 +60,6 @@ export function webglAvailable(): boolean {
   }
 }
 
-export function pointBudget(): number {
-  const mobile = window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 700;
-  const cores = navigator.hardwareConcurrency || 8;
-  const mem = (navigator as unknown as { deviceMemory?: number }).deviceMemory || 8;
-  const low = cores <= 4 || mem <= 4;
-  let n = mobile ? 12000 : 40000;
-  if (low) n = Math.min(n, mobile ? 9000 : 22000);
-  // ?n=12000 forces a point count, for checking how a form reads on a small budget
-  const q = /[?&]n=(\d+)/.exec(location.search);
-  if (q) n = Math.max(2000, Math.min(60000, Number(q[1])));
-  return n;
-}
-
 export class PointField {
   readonly canvas: HTMLCanvasElement;
   readonly N: number;
@@ -75,6 +69,12 @@ export class PointField {
   private camera = new PerspectiveCamera(FOV, 1, 0.1, 80);
   private geo = new BufferGeometry();
   private mat: ShaderMaterial;
+  private bgMat: ShaderMaterial;
+  private bg = new Vector3();
+  private post = new Post();
+  readonly quality: Quality;
+  private ca = 0;
+  private painted = false;
   private points: Points;
   private sceneryGeo = new BufferGeometry();
   private sceneryMat: ShaderMaterial;
@@ -96,9 +96,7 @@ export class PointField {
 
   // runtime
   private time = 3 + Math.random() * 40;
-  private dpr = Math.min(window.devicePixelRatio || 1, 1.75);
-  private ft: number[] = [];
-  private lowDraw = 1;
+  private dpr = 1;
   private visible = true;
   private dirty = true;
   private sizeW = 0;
@@ -116,33 +114,41 @@ export class PointField {
   private vel = 0;
   private vol = 0;
   private gazeOn = 0;
-  private fps = 60;
   // the face: where the head and eyes are, blinks, saccades and what the tracker reports
   private fs = {
     aimX: 0, aimY: 0, hx: 0.5, hy: 0.12, ex: 0.5, ey: 0.12, sx: 0, sy: 0, stx: 0, sty: 0, sacAt: 0,
     blink: 0, blinkT: -1, blinkAt: 2.4, yaw: 0, pitch: 0, roll: 0, gx: 0, gy: 0, conf: 0.98, flash: 0, drop: 0,
+    bx: 0, by: 0, bw: 1, bh: 1.1,
   };
-  private adaptive = !/[?&]noadapt/.test(location.search);
+  private outline: number[] = [];
   private tmp = new Vector3();
   theme: 'night' | 'day' = 'night';
 
   constructor(canvas: HTMLCanvasElement, reduced: boolean) {
     this.canvas = canvas;
     this.reduced = reduced;
-    this.renderer = new WebGLRenderer({ canvas, antialias: false, alpha: true, powerPreference: 'high-performance' });
-    // a software rasteriser (no GPU) is the lowest tier there is: use the light budget
-    let n = pointBudget();
+    // opaque canvas: the scene paints its own background, so the post pass has something exact to work against
+    this.renderer = new WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: 'high-performance' });
+    this.renderer.autoClear = false;
+    let gpu = '';
     try {
       const gl = this.renderer.getContext();
       const ext = gl.getExtension('WEBGL_debug_renderer_info');
-      const name = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : '';
-      if (/swiftshader|llvmpipe|software/i.test(name) && !/[?&](noadapt|n=)/.test(location.search)) {
-        n = Math.min(n, 9000);
-        this.dpr = 1;
-      }
+      gpu = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : '';
     } catch { /* keep the default */ }
-    this.N = n;
-    this.renderer.setClearColor(0x000000, 0);
+    this.quality = new Quality(gpu);
+    this.N = this.quality.points;
+    this.dpr = Math.min(window.devicePixelRatio || 1, this.quality.level.dpr);
+    this.bgMat = new ShaderMaterial({
+      vertexShader: 'void main() { gl_Position = vec4(position.xy, 1., 1.); }',
+      fragmentShader: 'precision highp float; uniform vec3 uBg; void main() { gl_FragColor = vec4(uBg, 1.); }',
+      uniforms: { uBg: { value: this.bg } }, depthTest: false, depthWrite: false, blending: NoBlending,
+    });
+    const bgGeo = new BufferGeometry();
+    bgGeo.setAttribute('position', new BufferAttribute(new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]), 3));
+    const sky = new Mesh(bgGeo, this.bgMat);
+    sky.frustumCulled = false; sky.renderOrder = -10;
+    this.scene.add(sky);
     const shared = {
       uDay: { value: 0 },
       uTime: { value: 0 }, uPR: { value: this.dpr }, uSize: { value: 2.3 }, uIntro: { value: 0 }, uAlphaMul: { value: 1 },
@@ -151,11 +157,12 @@ export class PointField {
       uBands: { value: [new Vector2(-9, -9), new Vector2(-9, -9), new Vector2(-9, -9)] }, uBandK: { value: 0 },
     };
     const fg = faceGeo();
+    this.outline = fg.outline;
     this.mat = new ShaderMaterial({
       vertexShader: vert,
       defines: {
         EYE_X: fg.eye.x.toFixed(4), EYE_Y: fg.eye.y.toFixed(4), EYE_Z: fg.eye.z.toFixed(4), EYE_A: fg.eye.a.toFixed(4), EYE_B: fg.eye.b.toFixed(4),
-        BRIDGE_Y: fg.bridge.y.toFixed(4), BRIDGE_Z: fg.bridge.z.toFixed(4), BOX_Z: FACE_BOX.z.toFixed(4),
+        BRIDGE_Y: fg.bridge.y.toFixed(4), BRIDGE_Z: fg.bridge.z.toFixed(4),
       },
       fragmentShader: frag,
       transparent: true,
@@ -170,9 +177,8 @@ export class PointField {
         uLayoutA: { value: new Vector3(1, 0, 0) }, uLayoutB: { value: new Vector3(1, 0, 0) },
         uStationA: { value: new Vector3() }, uStationB: { value: new Vector3() }, uFocus: { value: new Vector3() },
         uPointer: { value: new Vector4(0, 0, 0, 1.15) },
-        // fewer points are drawn a little larger, so a small budget still reads
         uDens: { value: Math.min(1.5, Math.pow(40000 / this.N, 0.33)) }, uRepel: { value: 1 },
-        uGaze: { value: new Vector3() }, uHead: { value: new Vector3() }, uFace: { value: new Vector4(0, 0, 0, 9) }, uEye: { value: new Vector2() }, uVol: { value: 0 }, uEnergy: { value: 0 }, uBeatAmt: { value: 0 },
+        uGaze: { value: new Vector3() }, uHead: { value: new Vector3() }, uFace: { value: new Vector4(0, 0, 0, 9) }, uEye: { value: new Vector2() }, uBox: { value: new Vector4(0, 0, 1, 1.1) }, uVol: { value: 0 }, uEnergy: { value: 0 }, uBeatAmt: { value: 0 },
         uTextMask: { value: new Vector4(0, 0, 0.12, 0) },
       },
     });
@@ -195,6 +201,7 @@ export class PointField {
     this.sceneryGeo.setAttribute('aS', new BufferAttribute(new Float32Array(3), 3));
     this.scenery = new Points(this.sceneryGeo, this.sceneryMat);
     this.scenery.frustumCulled = false;
+    this.scenery.renderOrder = 1; this.points.renderOrder = 2;
     this.scene.add(this.scenery, this.points);
     this.camera.position.set(0, 0, CAM_Z);
     this.setTheme('night');
@@ -205,7 +212,7 @@ export class PointField {
     window.addEventListener('pointermove', (e) => this.onPointer(e), { passive: true });
     window.addEventListener('pointerdown', (e) => this.onPointer(e), { passive: true });
     document.addEventListener('visibilitychange', () => { this.visible = !document.hidden; });
-    canvas.addEventListener('webglcontextlost', (e) => e.preventDefault());
+    canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); this.painted = false; document.documentElement.classList.remove('gl-on'); });
     canvas.addEventListener('webglcontextrestored', () => { this.sizeW = 0; this.resize(); });
   }
 
@@ -310,7 +317,7 @@ export class PointField {
   private maskFor(form: FormName, kind: Kind): Mask {
     const wide = this.wide;
     // on narrow screens points fade out wherever a block of copy is (uBands), so no line ever crosses text
-    const band = wide ? 0 : form === 'stars' ? 0.55 : 0.95;
+    const band = wide ? 0 : form === 'stars' ? 0.9 : 0.95;
     // the star field sits behind long reading sections: keep it quiet there
     if (form === 'stars' && kind === 'center') return { side: 0, edge: 0, soft: 0.1, k: 0, dim: 0.45, band };
     if (!wide) return { side: 0, edge: 0, soft: 0.1, k: 0, dim: 0, band };
@@ -340,7 +347,7 @@ export class PointField {
   }
   private rebuildScenery() {
     if (!this.ready || !this.stops.length) return;
-    const mobile = this.N <= 12000;
+    const mobile = this.low;
     const sc = buildScenery({
       stations: this.stations,
       places: this.stops.map((s) => ({ w: [s.w.x, s.w.y, s.w.z], lateral: s.lateral })),
@@ -422,6 +429,7 @@ export class PointField {
     U.uC0.value.set(p.c0); U.uC1.value.set(p.c1); U.uC2.value.set(p.c2); U.uNeutral.value.set(p.neutral);
     U.uAlphaMul.value = p.alpha;
     U.uDay.value = t === 'day' ? 1 : 0;
+    this.bg.set(p.bg[0] / 255, p.bg[1] / 255, p.bg[2] / 255);
     U.uSize.value = p.size;
     for (const m of [this.mat, this.sceneryMat]) {
       m.blending = t === 'night' ? AdditiveBlending : NormalBlending;
@@ -456,34 +464,32 @@ export class PointField {
     if (w === this.sizeW && h === this.sizeH) return;
     const wasWide = this.wide;
     this.sizeW = w; this.sizeH = h;
-    this.renderer.setPixelRatio(this.dpr);
-    this.renderer.setSize(w, h, false);
+    this.sizeBuffers();
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
-    this.mat.uniforms.uPR.value = this.dpr;
     // keep every station's layout valid for the new aspect
     for (const s of this.stops) { s.lay = this.layoutFor(s.name, s.kind); s.mask = this.maskFor(s.name, s.kind); }
     if (wasWide !== this.wide) this.rebuildScenery();
     this.dirty = true;
   }
 
-  private adapt(dt: number) {
-    if (!this.adaptive) return;
-    this.ft.push(dt);
-    if (this.ft.length < 40) return;
-    const avg = this.ft.reduce((a, b) => a + b, 0) / this.ft.length;
-    this.ft.length = 0;
-    if (avg > 20) {
-      if (this.dpr > 1.01) {
-        this.dpr = Math.max(1, this.dpr - 0.25);
-        this.renderer.setPixelRatio(this.dpr);
-        this.renderer.setSize(this.sizeW, this.sizeH, false);
-        this.mat.uniforms.uPR.value = this.dpr;
-      } else if (this.lowDraw > 0.5) {
-        this.lowDraw -= 0.15;
-        this.geo.setDrawRange(0, Math.floor(this.N * this.lowDraw));
-      }
-    }
+  /** drawing buffer, post targets and point sizes for the current pixel ratio and quality level */
+  private sizeBuffers() {
+    const lv = this.quality.level;
+    this.dpr = Math.min(window.devicePixelRatio || 1, lv.dpr);
+    this.renderer.setPixelRatio(this.dpr);
+    this.renderer.setSize(this.sizeW, this.sizeH, false);
+    this.post.configure(Math.floor(this.sizeW * this.dpr), Math.floor(this.sizeH * this.dpr), this.reduced && lv.bloom ? Math.min(lv.bloom, 3) : lv.bloom);
+    this.mat.uniforms.uPR.value = this.dpr;
+    // fewer points are drawn a little larger, and so are points on tall screens, where the same form covers more pixels
+    this.mat.uniforms.uDens.value = Math.min(1.5, Math.pow(40000 / (this.N * lv.draw), 0.33)) * Math.max(1, Math.min(1.8, this.sizeH / 900));
+    this.geo.setDrawRange(0, Math.floor(this.N * lv.draw));
+    this.dirty = true;
+  }
+  /** numbers for the ?fps overlay */
+  stats() {
+    const q = this.quality, lv = q.level;
+    return { ms: q.avg, worst: q.worst, tier: q.tier, step: q.step, steps: q.steps, points: Math.floor(this.N * lv.draw), dpr: this.dpr, bloom: lv.bloom };
   }
 
   /** where the camera is and what it looks at, for the current position on the route */
@@ -589,6 +595,20 @@ export class PointField {
       Math.max(-0.062, Math.min(0.062, (f.gx - f.hx) * 0.1 + f.gx * 0.034)),
       Math.max(-0.028, Math.min(0.028, (f.gy - f.hy) * 0.05 + f.gy * 0.018)),
     );
+    // the detection box: bounds of the mesh outline as it is turned right now, so the head stays centred in it
+    const cy = Math.cos(f.yaw), sy = Math.sin(f.yaw), cp = Math.cos(f.pitch), sp = Math.sin(f.pitch), cr = Math.cos(f.roll), sr = Math.sin(f.roll);
+    const v = faceGeo().v, c12 = Math.cos(0.12), s12 = Math.sin(0.12);
+    let x0 = 9, x1 = -9, y0 = 9, y1 = -9;
+    for (const i of this.outline) {
+      const x = v[i * 3], y = v[i * 3 + 1] - PIV_Y, z = v[i * 3 + 2] - PIV_Z;
+      const xa = cy * x + sy * z, za = -sy * x + cy * z;
+      const yb = cp * y - sp * za, zb = sp * y + cp * za;
+      const xc = cr * xa - sr * yb, yc = sr * xa + cr * yb + PIV_Y;
+      const xd = c12 * xc + s12 * (zb + PIV_Z);
+      if (xd < x0) x0 = xd; if (xd > x1) x1 = xd; if (yc < y0) y0 = yc; if (yc > y1) y1 = yc;
+    }
+    f.bx = (x0 + x1) / 2; f.by = (y0 + y1) / 2; f.bw = (x1 - x0) / 2 + 0.07; f.bh = (y1 - y0) / 2 + 0.07;
+    (U.uBox.value as Vector4).set(f.bx, f.by, f.bw, f.bh);
     const turned = Math.min(1, Math.abs(f.yaw + 0.12) / 0.42);
     const target = 0.985 - 0.09 * turned * turned - 0.2 * f.blink - f.drop;
     f.conf += (target - f.conf) * (this.reduced ? 1 : 1 - Math.exp(-dt * 7));
@@ -602,13 +622,16 @@ export class PointField {
     const at = this.resting, s = this.stops[Math.round(this.u)];
     if (!at || !s || at.form !== 'face' || this.low || this.narrow) return false;
     const f = this.fs, k = 1.65 * s.lay.s;
-    const cx = Math.sin(f.yaw) * 0.4, cy = -Math.sin(f.pitch) * 0.4;
-    const v = this.tmp.set((cx - FACE_BOX.x) * k + s.lay.x + s.w.x, (cy + FACE_BOX.y) * k + s.lay.y + s.w.y, FACE_BOX.z * k + s.w.z).project(this.camera);
+    const v = this.tmp.set((f.bx - f.bw) * k + s.lay.x + s.w.x, (f.by + f.bh) * k + s.lay.y + s.w.y, s.w.z).project(this.camera);
     o.x0 = (v.x * 0.5 + 0.5) * this.sizeW; o.y0 = (-v.y * 0.5 + 0.5) * this.sizeH;
-    v.set((cx + FACE_BOX.x) * k + s.lay.x + s.w.x, (cy - FACE_BOX.y) * k + s.lay.y + s.w.y, FACE_BOX.z * k + s.w.z).project(this.camera);
+    v.set((f.bx + f.bw) * k + s.lay.x + s.w.x, (f.by - f.bh) * k + s.lay.y + s.w.y, s.w.z).project(this.camera);
     o.x1 = (v.x * 0.5 + 0.5) * this.sizeW; o.y1 = (-v.y * 0.5 + 0.5) * this.sizeH;
     o.yaw = ((f.yaw + 0.12) * 180) / Math.PI; o.pitch = (-f.pitch * 180) / Math.PI;
-    o.gx = f.gx; o.gy = f.gy; o.conf = f.conf; o.fps = this.fps; o.kind = s.kind;
+    o.gx = f.gx; o.gy = f.gy; o.conf = f.conf; o.kind = s.kind;
+    // the tracker's own figures from the case study (22 fps, under 120 ms), with the small wobble a live read-out has
+    const t = this.reduced ? 0 : this.time;
+    o.rate = 22 + 0.3 * Math.sin(t * 1.7) + 0.15 * Math.sin(t * 4.3);
+    o.infer = 112 + 4 * Math.sin(t * 0.9) + 2 * Math.sin(t * 3.1);
     return true;
   }
 
@@ -617,7 +640,6 @@ export class PointField {
     if (!this.ready || !this.visible || !this.stops.length) return;
     const U = this.mat.uniforms;
     const dt = Math.min(dtMs, 50) / 1000;
-    if (dtMs > 0) this.fps += (1000 / dtMs - this.fps) * 0.06;
     if (this.reduced) {
       if (!this.dirty) return;
       this.dirty = false;
@@ -625,7 +647,7 @@ export class PointField {
     } else {
       this.time += dt;
       U.uTime.value = this.time;
-      this.adapt(dtMs);
+      if (this.quality.frame(dtMs)) this.sizeBuffers();
       // follow the scroll position with a little inertia, so fast scrolling streams through stations instead of snapping
       const d = this.uT - this.u;
       this.u = Math.abs(d) < 0.0004 ? this.uT : this.u + d * (1 - Math.exp(-dt * 6.5));
@@ -650,6 +672,12 @@ export class PointField {
     (U.uPointer.value as Vector4).set(this.ptr.x * halfH * this.aspect, this.ptr.y * halfH, this.reduced ? 0 : this.ptr.a, 1.15);
     U.uRipple.value = this.reduced ? 0 : this.ptr.a;
     U.uMic.value += (this.micLevel - U.uMic.value) * 0.35;
-    this.renderer.render(this.scene, this.camera);
+    // chromatic aberration follows scroll speed and is exactly zero at rest
+    const caT = this.reduced ? 0 : Math.max(0, Math.min(1, (this.velRaw - 4) / 70));
+    this.ca += (caT - this.ca) * (1 - Math.pow(caT > this.ca ? 0.001 : 0.00002, dt));
+    if (this.ca < 0.004) this.ca = 0;
+    if (this.post.active) this.post.render(this.renderer, this.scene, this.camera, { bg: this.bg, day: U.uDay.value as number, ca: this.ca * 0.02, time: this.time });
+    else { this.renderer.setRenderTarget(null); this.renderer.render(this.scene, this.camera); }
+    if (!this.painted) { this.painted = true; document.documentElement.classList.add('gl-on'); }
   }
 }

@@ -157,8 +157,6 @@ export function sampleText(text: string, font: string): { pts: number[]; w: numb
 const EYE_LOWER = [[33, 7, 163, 144, 145, 153, 154, 155, 133], [263, 249, 390, 373, 374, 380, 381, 382, 362]];
 const EYE_UPPER = [[33, 246, 161, 160, 159, 158, 157, 173, 133], [263, 466, 388, 387, 386, 385, 384, 398, 362]];
 const LIPS_INNER = [78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308, 191, 80, 81, 82, 13, 312, 311, 310, 415];
-/** the detection box drawn around the face (half width, half height, in face units) */
-export const FACE_BOX = { x: 1.0, y: 1.14, z: 0.1 };
 
 export interface FaceGeo {
   /** landmark positions: face height is 2 units, centred, z forward */
@@ -169,6 +167,8 @@ export interface FaceGeo {
   blink: Float32Array;
   /** mesh edges as landmark index pairs; the eye and mouth openings are left open */
   edges: Uint16Array;
+  /** landmarks on the outer boundary (plus the nose tip): enough to bound the turned head */
+  outline: number[];
   /** 1 for edges on the outer boundary of the mesh */
   rim: Uint8Array;
   len: Float32Array;
@@ -235,10 +235,12 @@ export function faceGeo(): FaceGeo {
   for (let i = 0; i < nv; i++) if (dragN[i] && v[i * 3 + 1] > 0.3) blink[i] = (drag[i] / dragN[i]) * 0.3;
   const edges = new Uint16Array(keep.size * 2), rim = new Uint8Array(keep.size), len = new Float32Array(keep.size);
   let total = 0, m = 0;
+  const outer = new Set<number>([4]);
   for (const k of keep) {
     const a = Math.floor(k / 512), b = k % 512;
     edges[m * 2] = a; edges[m * 2 + 1] = b;
     rim[m] = count.get(k) === 1 ? 1 : 0;
+    if (rim[m]) { outer.add(a); outer.add(b); }
     len[m] = Math.hypot(v[a * 3] - v[b * 3], v[a * 3 + 1] - v[b * 3 + 1], v[a * 3 + 2] - v[b * 3 + 2]);
     total += len[m++];
   }
@@ -246,7 +248,7 @@ export function faceGeo(): FaceGeo {
   let ex = 0, ey = 0, ez = 0;
   for (const i of [...L, ...U]) { ex += v[i * 3] / 18; ey += v[i * 3 + 1] / 18; ez += v[i * 3 + 2] / 18; }
   geo = {
-    v, n, blink, edges, rim, len, total,
+    v, n, blink, edges, rim, len, total, outline: [...outer],
     eye: { x: ex, y: ey, z: ez - 0.015, a: Math.abs(v[L[0] * 3] - v[L[8] * 3]) / 2, b: (v[U[4] * 3 + 1] - v[L[4] * 3 + 1]) / 2 },
     bridge: { y: v[168 * 3 + 1], z: v[168 * 3 + 2] },
   };
@@ -255,7 +257,7 @@ export function faceGeo(): FaceGeo {
 
 /**
  * e0 is the group: 0 mesh (e1 = 0 edge, 1 landmark, +0.5 on the outer boundary; e2, e3 = normal xy; tone = blink travel),
- * 1 iris (e1 = side), 2 gaze ray (e1 = distance along it, e2 = side), 3 reticle, 4 detection box, 5 pose gizmo (e1 = axis).
+ * 1 iris (e1 = side), 2 gaze ray (e1 = distance along it, e2 = side), 3 reticle, 4 detection box (xy = corner, e1 = distance along the arm, e2 = arm), 5 pose gizmo (e1 = axis).
  */
 export function genFace(N: number, r: Rnd): Float32Array {
   const o = new Float32Array(N * STRIDE);
@@ -281,8 +283,7 @@ export function genFace(N: number, r: Rnd): Float32Array {
   }
   for (let k = 0; k < nBox; k++) {
     const cx = k & 1 ? 1 : -1, cy = k & 2 ? 1 : -1, d = r() * 0.24;
-    if (k & 4) put(o, i++, cx * (FACE_BOX.x - d), cy * FACE_BOX.y, 0, 0, 4);
-    else put(o, i++, cx * FACE_BOX.x, cy * (FACE_BOX.y - d), 0, 0, 4);
+    put(o, i++, cx, cy, 0, 0, 4, d, k & 4 ? 0 : 1); // corner signs, distance along the arm, which arm
   }
   for (let ax = 0; ax < 3; ax++) for (let k = 0; k < nAxis; k++) put(o, i++, (k + 0.5) / nAxis, 0, 0, 0, 5, ax);
   // landmarks: a tight cluster reads as one brighter dot

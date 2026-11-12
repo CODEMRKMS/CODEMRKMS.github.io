@@ -52,6 +52,7 @@ async function boot() {
 
   // ?debug exposes the field for inspection from the console and the capture scripts
   if (field && /[?&](debug|fps)/.test(location.search)) (window as unknown as { __field: PointField }).__field = field;
+  if (field && /[?&]fps/.test(location.search)) void import('./fps').then((m) => m.initFps(field!));
   initTheme((t) => field?.setTheme(t));
 
   const ctx = { field, lenis, reduced };

@@ -33,6 +33,8 @@ code { font-family: ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace; f
 /* ---------- the canvas and its static fallback ---------- */
 #field { position: fixed; inset: 0 0 auto 0; width: 100%; height: 100vh; height: 100lvh; z-index: 0; pointer-events: none; display: block; }
 html:not(.gl) #field { display: none; }
+/* the canvas is opaque: keep it out of sight until it has painted its first frame */
+html:not(.gl-on) #field { visibility: hidden; }
 .sky { position: fixed; inset: 0; z-index: 0; pointer-events: none; display: none;
   background-image:
     radial-gradient(1px 1px at 20px 30px, var(--p1), transparent),

@@ -8,6 +8,7 @@ uniform vec3 uGaze;                // where the eyes look: xy in -1..1, z = how 
 uniform vec3 uHead;                // yaw, pitch, roll of the head
 uniform vec4 uFace;                // blink, breath, amber flash, height of the scan line
 uniform vec2 uEye;                 // how far the irises have turned inside the eyes
+uniform vec4 uBox;                 // detection box around the turned head: centre xy, half size
 const vec3 EYE = vec3(EYE_X, EYE_Y, EYE_Z);
 uniform vec3 uLayoutA, uLayoutB;   // scale, cx, cy of the form inside its station
 uniform vec3 uStationA, uStationB; // world position of the two stations being travelled between
@@ -117,8 +118,9 @@ vec3 form(float id, vec4 P, vec4 E, vec4 S) {
     } else if (grp < 3.5) {                        // reticle on the target
       p = T + p * (1. + .08 * sin(t * 2.4));
       gCol = ramp(1.); gAlpha = .9 * uGaze.z; gSize = .5;
-    } else if (grp < 4.5) {                        // detection box: screen aligned, follows the head
-      p = rotY(vec3(p.xy + vec2(sin(uHead.x) * .4, -sin(uHead.y) * .4), BOX_Z), -.12);
+    } else if (grp < 4.5) {                        // detection box: screen aligned, fitted to the head every frame
+      vec2 c = uBox.xy + p.xy * uBox.zw - (E.z < .5 ? vec2(p.x * E.y, 0.) : vec2(0., p.y * E.y));
+      p = rotY(vec3(c, 0.), -.12);
       gCol = ramp(.5); gAlpha = .8; gSize = .6;
     } else {                                       // pose gizmo at the nose bridge
       vec3 d = E.y < .5 ? vec3(1., 0., 0.) : (E.y < 1.5 ? vec3(0., 1., 0.) : vec3(0., 0., 1.));
@@ -266,7 +268,7 @@ void main() {
   float m = uTextMask.x < -.5 ? 1. - smoothstep(uTextMask.y - uTextMask.z, uTextMask.y + uTextMask.z, nx)
           : (uTextMask.x > .5 ? smoothstep(uTextMask.y - uTextMask.z, uTextMask.y + uTextMask.z, nx) : 0.);
   // depth fade: nothing pops at the lens, and far stations sink into the dark
-  float depth = smoothstep(.5, 2.4, -mv.z) * (1. - smoothstep(24., 42., -mv.z));
+  float depth = smoothstep(.5, 2.4, -mv.z) * (1. - smoothstep(24., 42., -mv.z)) * mix(1., .62, smoothstep(10., 22., -mv.z));
   alpha *= (1. - uTextMask.w * m) * (1. - uDim) * (1. - uBandK * inBands(gl_Position.y / gl_Position.w)) * uIntro * uAlphaMul * depth;
 
   gl_PointSize = min(uSize * uPR * uDens * size * 8. / max(-mv.z, .1), 16. * uPR);

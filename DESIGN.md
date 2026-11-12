@@ -15,10 +15,16 @@ resolving into something that means something. Everything else stays quiet so th
 | Point ramp, mid | `#2BB3A3` teal | `#0E7F73` |
 | Point ramp, high | `#F2A541` amber | `#B8690A` |
 
-* Amber is used for: the focus ring, link hover, the "Speak" button, the pulse core, failed pipeline points. Nothing else.
-  No gradients on UI, no glow, no blobs.
+* Amber is used for: the focus ring, link hover, the "Speak" button, the pulse core, failed pipeline points, and the
+  gaze layer of the face mesh (irises, rays, reticle, confidence label). Nothing else.
+  No gradients on UI, no blobs. Glow belongs to the canvas only: points have a soft falloff and the scene gets a
+  thresholded bloom, strong at night and almost off in Daylight. UI elements never glow.
+* The canvas is opaque and paints its own background, exactly `#0C0E14` at night and `#F3EFE6` in Daylight. Bloom,
+  grain and vignette are applied only to what the particles add, so untouched pixels match the page colour.
+* Chromatic aberration appears only while scrolling fast and is zero at rest.
 * Night points blend additively; daylight points blend normally (ink on paper).
 * Text over the canvas: the shader dims points in the text column (`uTextMask`), so copy sits on near-bare background.
+  On stacked (phone) layouts the form sits above the copy and points fade out in the rows that hold text (`uBands`).
   All text pairs are AA or better.
 
 ## Type
