@@ -82,6 +82,9 @@ async function boot() {
     root.classList.add('gl-ready');
   }
   root.classList.add('is-ready');
+  // easter eggs are not needed to use the site: fetch them when the browser has nothing better to do
+  const idle = window.requestIdleCallback ? (f: () => void) => window.requestIdleCallback(f, { timeout: 4000 }) : (f: () => void) => window.setTimeout(f, 1500);
+  idle(() => void import('./eggs').then((m) => m.initEggs({ field, lenis, reduced })));
 }
 
 // Let the first paint (the real HTML text) happen, then start. Nothing here waits for window.load,

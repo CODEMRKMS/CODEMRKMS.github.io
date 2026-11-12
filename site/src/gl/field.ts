@@ -178,7 +178,7 @@ export class PointField {
         uStationA: { value: new Vector3() }, uStationB: { value: new Vector3() }, uFocus: { value: new Vector3() },
         uPointer: { value: new Vector4(0, 0, 0, 1.15) },
         uDens: { value: Math.min(1.5, Math.pow(40000 / this.N, 0.33)) }, uRepel: { value: 1 },
-        uGaze: { value: new Vector3() }, uHead: { value: new Vector3() }, uFace: { value: new Vector4(0, 0, 0, 9) }, uEye: { value: new Vector2() }, uBox: { value: new Vector4(0, 0, 1, 1.1) }, uVol: { value: 0 }, uEnergy: { value: 0 }, uBeatAmt: { value: 0 },
+        uGaze: { value: new Vector3() }, uHead: { value: new Vector3() }, uFace: { value: new Vector4(0, 0, 0, 9) }, uEye: { value: new Vector2() }, uBox: { value: new Vector4(0, 0, 1, 1.1) }, uPipe: { value: new Vector3() }, uNameHide: { value: 0 }, uVol: { value: 0 }, uEnergy: { value: 0 }, uBeatAmt: { value: 0 },
         uTextMask: { value: new Vector4(0, 0, 0.12, 0) },
       },
     });
@@ -615,6 +615,23 @@ export class PointField {
   }
   /** the tracker loses the face for a moment: the mesh flashes amber and its confidence drops, then recovers */
   lookAway() { this.fs.flash = 1.4; this.fs.drop = 0.55; this.dirty = true; }
+  /** what the eggs need to know: the form in front of the camera, how volatile the candles are, how much the cursor steers the gaze */
+  eggState() { return { form: this.stops[Math.round(this.u)]?.name ?? 'stars', vol: this.vol, gaze: this.gazeOn }; }
+  /** the particle wordmark fades out while the name is on screen as loose letters, and back in afterwards */
+  hideName(v: boolean) { gsap.to(this.mat.uniforms.uNameHide, { value: v ? 1 : 0, duration: this.reduced ? 0 : 0.35, onUpdate: () => { this.dirty = true; } }); }
+  /** git push --force: the pipeline fails, runs backwards to the last good build, then goes green */
+  forcePush() {
+    const p = this.mat.uniforms.uPipe.value as Vector3;
+    if (this.reduced) return;
+    gsap.killTweensOf(p);
+    p.set(0, 0, 0);
+    gsap.timeline()
+      .to(p, { x: 1, duration: 0.35, ease: 'power2.out' }, 0.5)
+      .to(p, { y: -7, duration: 1.5, ease: 'power2.inOut' }, 1.3)
+      .to(p, { x: 0, duration: 0.5, ease: 'power1.inOut' }, 2.4)
+      .to(p, { z: 1, duration: 0.3, ease: 'power2.out' }, 3.4)
+      .to(p, { z: 0, duration: 1.2, ease: 'power2.in' }, 3.9);
+  }
   /** small devices get the mesh, irises and gaze rays only */
   get low() { return this.N <= 12000; }
   /** live values for the labels beside the face. False when they should not be shown. */

@@ -72,6 +72,22 @@ in this file; `PLAN.md`, `DESIGN.md` and `REVIEW.md` still describe v1 and have 
   sections, the pulse core burning out under bloom, stars crossing the awards list on phones, forms going faint
   on tall screens (points now scale with viewport height).
 
+**Item 4: easter eggs (all lazy; `site/src/eggs/`)**
+- `eggs/index.ts` loads on idle and only wires listeners. Terminal, pile and confetti load on first use.
+- Console: ASCII greeting, a line for recruiters, a hint about the terminal. Typing `hi` in the console counts it.
+- Backtick terminal (`terminal.ts`): modal `<dialog>` docked to the bottom, output is a live `role="log"`. Commands:
+  help, whoami, projects, resume, sudo hire-me (confetti), theme, matrix, exit, clear, `git push --force`
+  (`field.forcePush()`: the pipeline turns amber and scatters, runs backwards, then flashes green; the page scrolls
+  to the Volvo section if there is one). Answers are page copy.
+- Konami (`pile.ts`): the name becomes DOM letters with a small circle physics step; drag and throw; Esc or the
+  hint button restores. The particle wordmark hides meanwhile (`field.hideName`).
+- Tab return on a face section: toast "caught you looking away", `field.lookAway()` flashes the mesh amber and
+  drops the confidence label.
+- Counter: "eggs found: n/8" in the footer after the first find (localStorage `eggs`), confetti at 8/8. The eight:
+  console, terminal, hire, force, konami, away, eyes (cursor steering the gaze), volatile (fast scroll on candles).
+- With reduced motion only the console and the terminal exist, and the terminal's animations are off.
+- `node scripts/eggs.mjs <outDir>` is a smoke test of all of the above.
+
 ## Known issues
 - Daylight still uses the v1 instant palette swap (no sun arc, no premultiplied blend). That is Step 2 work.
 - No 404 page yet. `old-site/` is dead code still in the repo.

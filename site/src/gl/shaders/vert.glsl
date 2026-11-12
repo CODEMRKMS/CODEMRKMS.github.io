@@ -8,6 +8,8 @@ uniform vec3 uGaze;                // where the eyes look: xy in -1..1, z = how 
 uniform vec3 uHead;                // yaw, pitch, roll of the head
 uniform vec4 uFace;                // blink, breath, amber flash, height of the scan line
 uniform vec2 uEye;                 // how far the irises have turned inside the eyes
+uniform vec3 uPipe;                // pipeline: failure, flow offset (negative = rolling back), all-green flash
+uniform float uNameHide;           // the wordmark steps aside while its letters are out as a pile
 uniform vec4 uBox;                 // detection box around the turned head: centre xy, half size
 const vec3 EYE = vec3(EYE_X, EYE_Y, EYE_Z);
 uniform vec3 uLayoutA, uLayoutB;   // scale, cx, cy of the form inside its station
@@ -81,7 +83,7 @@ vec3 form(float id, vec4 P, vec4 E, vec4 S) {
   } else if (id < 1.5) {                           // 1 wordmark
     p.z += .03 * sin(t * .8 + S.w * 20.);
     p.xy += .009 * vec2(sin(t + S.z * 30.), cos(t * 1.1 + S.x * 30.));
-    gSize = .95; gAlpha = .95; gCol = ramp(tone * .82 + .04);
+    gSize = .95; gAlpha = .95 * (1. - uNameHide); gCol = ramp(tone * .82 + .04);
   } else if (id < 2.5) {                           // 2 face-tracking landmark mesh
     vec2 g = uGaze.xy;
     float blink = uFace.x, grp = E.x;
@@ -166,18 +168,20 @@ vec3 form(float id, vec4 P, vec4 E, vec4 S) {
   } else if (id < 5.5) {                           // 5 pipeline lattice
     if (E.x < .5) {
       float u0 = P.x, v = .045 * E.y;
-      float cyc = floor(u0 + t * v), u = fract(u0 + t * v);
+      float flow = u0 + t * v + uPipe.y * E.y;
+      float cyc = floor(flow), u = fract(flow);
       float fail = E.z * step(.5, hash11(cyc * 7.31 + S.x * 50.));
       float s0 = floor(E.w * 5. + .5) / 5.;
       float bump = smoothstep(s0 - .03, s0 + .02, u) * (1. - smoothstep(s0 + .08, s0 + .22, u)) * fail;
       p.x = mix(-3.4, 3.4, u);
-      p.y += bump * (S.y > .5 ? 1. : -1.) * 1.25;
+      p.y += bump * (S.y > .5 ? 1. : -1.) * 1.25 + uPipe.x * step(.3, S.x) * (S.y - .5) * 1.1;
       p.z += bump * (S.z - .5) * .9;
-      gCol = mix(ramp(tone + .15), ramp(1.), bump);
+      gCol = mix(ramp(tone + .15), ramp(1.), max(bump, uPipe.x));
+      gCol = lift(mix(gCol, ramp(.5), uPipe.z), uPipe.z * .8);
       gAlpha = smoothstep(0., .06, u) * (1. - smoothstep(.94, 1., u)) * (.75 + .5 * S.y);
       gSize = 1. + bump * .7;
-    } else if (E.x < 1.5) { gAlpha = .3; gSize = .7; gCol = ramp(.3); }
-    else { gAlpha = .9; gSize = 1.25; gCol = ramp(.62); }
+    } else if (E.x < 1.5) { gAlpha = .3; gSize = .7; gCol = mix(ramp(.3), ramp(1.), uPipe.x); }
+    else { gAlpha = .9; gSize = 1.25 + uPipe.z * .5; gCol = lift(mix(ramp(.62), ramp(1.), uPipe.x), uPipe.z); }
     p = rotX(rotY(p, -.55), .18);
   } else if (id < 6.5) {                           // 6 document lines sorting into Keep / Review / Remove
     float line = E.y, grp = E.z;
