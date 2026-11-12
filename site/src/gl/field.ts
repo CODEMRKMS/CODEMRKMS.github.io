@@ -19,11 +19,13 @@ import gsap from 'gsap';
 import vert from './shaders/vert.glsl?raw';
 import frag from './shaders/frag.glsl?raw';
 import sceneryVert from './shaders/scenery.vert.glsl?raw';
-import { AWARD_STARS, EYE_X, EYE_Y, EYE_Z, FORM, FORM_COUNT, STRIDE, genSeeds, genWordmark, mulberry32, buildShapes, sampleText, type FormName } from './shapes';
+import { AWARD_STARS, FACE_BOX, FORM, FORM_COUNT, STRIDE, faceGeo, genSeeds, genWordmark, mulberry32, buildShapes, sampleText, type FormName } from './shapes';
 import { CAM_Z, buildScenery, placeStations, type Kind, type Station } from './rail';
 
 export type { Kind, Station };
 interface Layout { s: number; x: number; y: number }
+/** what the face tracker is reporting right now, and where its detection box is on screen (css px) */
+export interface FaceHud { yaw: number; pitch: number; gx: number; gy: number; conf: number; fps: number; x0: number; y0: number; x1: number; y1: number; kind: Kind }
 interface Mask { side: number; edge: number; soft: number; k: number; dim: number; band: number }
 /** a station resolved for the current viewport */
 interface Stop { form: number; name: FormName; kind: Kind; w: Vector3; cam: Vector3; lay: Layout; mask: Mask; lateral: boolean }
@@ -114,6 +116,12 @@ export class PointField {
   private vel = 0;
   private vol = 0;
   private gazeOn = 0;
+  private fps = 60;
+  // the face: where the head and eyes are, blinks, saccades and what the tracker reports
+  private fs = {
+    aimX: 0, aimY: 0, hx: 0.5, hy: 0.12, ex: 0.5, ey: 0.12, sx: 0, sy: 0, stx: 0, sty: 0, sacAt: 0,
+    blink: 0, blinkT: -1, blinkAt: 2.4, yaw: 0, pitch: 0, roll: 0, gx: 0, gy: 0, conf: 0.98, flash: 0, drop: 0,
+  };
   private adaptive = !/[?&]noadapt/.test(location.search);
   private tmp = new Vector3();
   theme: 'night' | 'day' = 'night';
@@ -136,14 +144,19 @@ export class PointField {
     this.N = n;
     this.renderer.setClearColor(0x000000, 0);
     const shared = {
+      uDay: { value: 0 },
       uTime: { value: 0 }, uPR: { value: this.dpr }, uSize: { value: 2.3 }, uIntro: { value: 0 }, uAlphaMul: { value: 1 },
       uC0: { value: new Color() }, uC1: { value: new Color() }, uC2: { value: new Color() }, uNeutral: { value: new Color() },
       // narrow screens: the rows (ndc y: top, bottom) that copy occupies right now, and how hard points fade inside them
       uBands: { value: [new Vector2(-9, -9), new Vector2(-9, -9), new Vector2(-9, -9)] }, uBandK: { value: 0 },
     };
+    const fg = faceGeo();
     this.mat = new ShaderMaterial({
       vertexShader: vert,
-      defines: { EYE_X: EYE_X.toFixed(4), EYE_Y: EYE_Y.toFixed(4), EYE_Z: EYE_Z.toFixed(4) },
+      defines: {
+        EYE_X: fg.eye.x.toFixed(4), EYE_Y: fg.eye.y.toFixed(4), EYE_Z: fg.eye.z.toFixed(4), EYE_A: fg.eye.a.toFixed(4), EYE_B: fg.eye.b.toFixed(4),
+        BRIDGE_Y: fg.bridge.y.toFixed(4), BRIDGE_Z: fg.bridge.z.toFixed(4), BOX_Z: FACE_BOX.z.toFixed(4),
+      },
       fragmentShader: frag,
       transparent: true,
       depthTest: false,
@@ -158,8 +171,8 @@ export class PointField {
         uStationA: { value: new Vector3() }, uStationB: { value: new Vector3() }, uFocus: { value: new Vector3() },
         uPointer: { value: new Vector4(0, 0, 0, 1.15) },
         // fewer points are drawn a little larger, so a small budget still reads
-        uDens: { value: Math.min(1.5, Math.pow(40000 / this.N, 0.33)) },
-        uGaze: { value: new Vector3() }, uVol: { value: 0 }, uEnergy: { value: 0 }, uBeatAmt: { value: 0 },
+        uDens: { value: Math.min(1.5, Math.pow(40000 / this.N, 0.33)) }, uRepel: { value: 1 },
+        uGaze: { value: new Vector3() }, uHead: { value: new Vector3() }, uFace: { value: new Vector4(0, 0, 0, 9) }, uEye: { value: new Vector2() }, uVol: { value: 0 }, uEnergy: { value: 0 }, uBeatAmt: { value: 0 },
         uTextMask: { value: new Vector4(0, 0, 0.12, 0) },
       },
     });
@@ -408,6 +421,7 @@ export class PointField {
     const p = PALETTE[t], U = this.mat.uniforms;
     U.uC0.value.set(p.c0); U.uC1.value.set(p.c1); U.uC2.value.set(p.c2); U.uNeutral.value.set(p.neutral);
     U.uAlphaMul.value = p.alpha;
+    U.uDay.value = t === 'day' ? 1 : 0;
     U.uSize.value = p.size;
     for (const m of [this.mat, this.sceneryMat]) {
       m.blending = t === 'night' ? AdditiveBlending : NormalBlending;
@@ -492,6 +506,8 @@ export class PointField {
     (U.uTextMask.value as Vector4).set(lerp(A.mask.side, B.mask.side, m), lerp(A.mask.edge, B.mask.edge, m), lerp(A.mask.soft, B.mask.soft, m), lerp(A.mask.k, B.mask.k, m));
     U.uDim.value = lerp(A.mask.dim, B.mask.dim, m);
     U.uBandK.value = lerp(A.mask.band, B.mask.band, m);
+    // the face is a measured mesh: the pointer steers its gaze instead of pushing its points around
+    U.uRepel.value = lerp(A.name === 'face' ? 0.08 : 1, B.name === 'face' ? 0.08 : 1, m);
 
     // camera: ease between the two rest poses, bowing off the straight line so the route reads as a curve
     const e = smoother(t), arc = Math.sin(Math.PI * e);
@@ -508,10 +524,9 @@ export class PointField {
     const F = t < 0.5 ? A : B;
     if (F.name === 'face') {
       const halfH = Math.tan((FOV * Math.PI) / 360) * CAM_Z, halfW = halfH * this.aspect;
-      const gx = Math.max(-1, Math.min(1, (this.ptr.x - F.lay.x / halfW) * 1.25));
-      const gy = Math.max(-1, Math.min(1, (this.ptr.y - F.lay.y / halfH) * 1.25));
-      this.gazeOn += ((this.reduced ? 0 : this.ptrTarget.a) - this.gazeOn) * (1 - Math.pow(0.02, dt));
-      (U.uGaze.value as Vector3).set(gx, gy, this.gazeOn);
+      this.fs.aimX = Math.max(-1, Math.min(1, (this.ptr.x - F.lay.x / halfW) * 1.25));
+      this.fs.aimY = Math.max(-1, Math.min(1, (this.ptr.y - F.lay.y / halfH) * 1.25));
+      this.faceTick(dt);
     }
 
     const k = this.reduced ? 1 : 1 - Math.pow(0.0015, dt);
@@ -524,11 +539,85 @@ export class PointField {
     this.camera.updateMatrixWorld();
   }
 
+  /** the life in the face: head follows the gaze target, eyes get there first, blinks and saccades come at irregular intervals */
+  private faceTick(dt: number) {
+    const f = this.fs, t = this.time, U = this.mat.uniforms;
+    let breath = 0, scan = 9;
+    if (this.reduced) {
+      // a still pose: looking a little to the side, eyes open, rays drawn
+      f.hx = f.ex = 0.5; f.hy = f.ey = 0.12; f.sx = f.sy = f.blink = 0;
+    } else {
+      this.gazeOn += (this.ptrTarget.a - this.gazeOn) * (1 - Math.pow(0.02, dt));
+      const tx = lerp(0.62 * Math.sin(t * 0.33) + 0.14 * Math.sin(t * 0.9), f.aimX, this.gazeOn);
+      const ty = lerp(0.4 * Math.sin(t * 0.47 + 1), f.aimY, this.gazeOn);
+      f.ex += (tx - f.ex) * (1 - Math.exp(-dt * 11));
+      f.ey += (ty - f.ey) * (1 - Math.exp(-dt * 11));
+      f.hx += (tx - f.hx) * (1 - Math.exp(-dt * 3.2));
+      f.hy += (ty - f.hy) * (1 - Math.exp(-dt * 3.2));
+      // saccades: small quick jumps of the eyes, larger when nothing is steering them
+      if (t > f.sacAt) {
+        const amp = this.gazeOn < 0.5 ? 1 : 0.2;
+        f.stx = (Math.random() - 0.5) * 0.36 * amp; f.sty = (Math.random() - 0.5) * 0.2 * amp;
+        f.sacAt = t + 0.35 + Math.random() * 1.9;
+      }
+      const ks = 1 - Math.exp(-dt * 32);
+      f.sx += (f.stx - f.sx) * ks; f.sy += (f.sty - f.sy) * ks;
+      // blinks: 2 to 6 seconds apart, now and then a double
+      if (f.blinkT < 0 && t > f.blinkAt) f.blinkT = 0;
+      if (f.blinkT >= 0) {
+        f.blinkT += dt;
+        const x = f.blinkT / 0.18;
+        f.blink = x < 0.36 ? smooth(x / 0.36) : x < 1 ? 1 - smooth((x - 0.36) / 0.64) : 0;
+        if (x >= 1) { f.blinkT = -1; f.blinkAt = t + (Math.random() < 0.18 ? 0.2 : 1.8 + Math.random() * 4.4); }
+      }
+      breath = Math.sin(t * 1.25);
+      const ph = (t % 5.6) / 5.6;
+      if (ph < 0.42) scan = 1.3 - (ph / 0.42) * 2.6;
+      f.flash *= Math.exp(-dt * 1.5);
+      f.drop *= Math.exp(-dt * 0.9);
+    }
+    f.gx = Math.max(-1.1, Math.min(1.1, f.ex + f.sx)); f.gy = Math.max(-1.1, Math.min(1.1, f.ey + f.sy));
+    // the head turns at most about 25 degrees (including the fixed quarter turn in the shader); the eyes do the rest
+    f.yaw = Math.max(-0.3, Math.min(0.3, f.hx * 0.3));
+    f.pitch = Math.max(-0.22, Math.min(0.22, -f.hy * 0.22)) + breath * 0.008;
+    f.roll = -f.yaw * 0.12 + (this.reduced ? 0 : 0.012 * Math.sin(t * 0.4));
+    const away = Math.max(0, Math.min(1, (Math.hypot(f.gx, f.gy) - 0.15) / 0.3));
+    (U.uGaze.value as Vector3).set(f.gx, f.gy, smooth(away));
+    (U.uHead.value as Vector3).set(f.yaw, f.pitch, f.roll);
+    (U.uFace.value as Vector4).set(f.blink, breath, Math.min(1, f.flash), scan);
+    (U.uEye.value as Vector2).set(
+      Math.max(-0.062, Math.min(0.062, (f.gx - f.hx) * 0.1 + f.gx * 0.034)),
+      Math.max(-0.028, Math.min(0.028, (f.gy - f.hy) * 0.05 + f.gy * 0.018)),
+    );
+    const turned = Math.min(1, Math.abs(f.yaw + 0.12) / 0.42);
+    const target = 0.985 - 0.09 * turned * turned - 0.2 * f.blink - f.drop;
+    f.conf += (target - f.conf) * (this.reduced ? 1 : 1 - Math.exp(-dt * 7));
+  }
+  /** the tracker loses the face for a moment: the mesh flashes amber and its confidence drops, then recovers */
+  lookAway() { this.fs.flash = 1.4; this.fs.drop = 0.55; this.dirty = true; }
+  /** small devices get the mesh, irises and gaze rays only */
+  get low() { return this.N <= 12000; }
+  /** live values for the labels beside the face. False when they should not be shown. */
+  faceHud(o: FaceHud): boolean {
+    const at = this.resting, s = this.stops[Math.round(this.u)];
+    if (!at || !s || at.form !== 'face' || this.low || this.narrow) return false;
+    const f = this.fs, k = 1.65 * s.lay.s;
+    const cx = Math.sin(f.yaw) * 0.4, cy = -Math.sin(f.pitch) * 0.4;
+    const v = this.tmp.set((cx - FACE_BOX.x) * k + s.lay.x + s.w.x, (cy + FACE_BOX.y) * k + s.lay.y + s.w.y, FACE_BOX.z * k + s.w.z).project(this.camera);
+    o.x0 = (v.x * 0.5 + 0.5) * this.sizeW; o.y0 = (-v.y * 0.5 + 0.5) * this.sizeH;
+    v.set((cx + FACE_BOX.x) * k + s.lay.x + s.w.x, (cy - FACE_BOX.y) * k + s.lay.y + s.w.y, FACE_BOX.z * k + s.w.z).project(this.camera);
+    o.x1 = (v.x * 0.5 + 0.5) * this.sizeW; o.y1 = (-v.y * 0.5 + 0.5) * this.sizeH;
+    o.yaw = ((f.yaw + 0.12) * 180) / Math.PI; o.pitch = (-f.pitch * 180) / Math.PI;
+    o.gx = f.gx; o.gy = f.gy; o.conf = f.conf; o.fps = this.fps; o.kind = s.kind;
+    return true;
+  }
+
   /** called from the shared GSAP ticker */
   tick(dtMs: number) {
     if (!this.ready || !this.visible || !this.stops.length) return;
     const U = this.mat.uniforms;
     const dt = Math.min(dtMs, 50) / 1000;
+    if (dtMs > 0) this.fps += (1000 / dtMs - this.fps) * 0.06;
     if (this.reduced) {
       if (!this.dirty) return;
       this.dirty = false;

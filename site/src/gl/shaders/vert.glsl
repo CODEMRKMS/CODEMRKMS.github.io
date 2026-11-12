@@ -2,8 +2,12 @@
 precision highp float;
 
 uniform float uTime, uProgress, uPR, uSize, uScroll, uSection, uChaos, uIntro, uBeat, uMic, uMicOn, uRipple, uDim, uAlphaMul;
-uniform float uFormA, uFormB, uTurb, uDrift, uVol, uEnergy, uBeatAmt, uDens;
-uniform vec3 uGaze;                // where the face looks: xy in -1..1, z = how much the cursor is in charge
+uniform float uFormA, uFormB, uTurb, uDrift, uVol, uEnergy, uBeatAmt, uDens, uRepel;
+uniform float uDay;                // 0 night (light on dark), 1 Daylight (ink on paper)
+uniform vec3 uGaze;                // where the eyes look: xy in -1..1, z = how visible the gaze rays are
+uniform vec3 uHead;                // yaw, pitch, roll of the head
+uniform vec4 uFace;                // blink, breath, amber flash, height of the scan line
+uniform vec2 uEye;                 // how far the irises have turned inside the eyes
 const vec3 EYE = vec3(EYE_X, EYE_Y, EYE_Z);
 uniform vec3 uLayoutA, uLayoutB;   // scale, cx, cy of the form inside its station
 uniform vec3 uStationA, uStationB; // world position of the two stations being travelled between
@@ -51,6 +55,10 @@ vec3 rotX(vec3 p, float a) { float c = cos(a), s = sin(a); return vec3(p.x, c * 
 vec3 rotY(vec3 p, float a) { float c = cos(a), s = sin(a); return vec3(c * p.x + s * p.z, p.y, -s * p.x + c * p.z); }
 vec3 rotZ(vec3 p, float a) { float c = cos(a), s = sin(a); return vec3(c * p.x - s * p.y, s * p.x + c * p.y, p.z); }
 
+vec3 headTurn(vec3 p) { return rotZ(rotX(rotY(p, uHead.x), uHead.y), uHead.z); }
+// a highlight is brighter at night and darker ink in Daylight
+vec3 lift(vec3 c, float h) { return mix(c * (1. + .7 * h) + .1 * h, c * (1. - .4 * h), uDay); }
+
 // Animated position, colour, alpha and size of one point in one form.
 vec3 form(float id, vec4 P, vec4 E, vec4 S) {
   vec3 p = P.xyz;
@@ -73,42 +81,53 @@ vec3 form(float id, vec4 P, vec4 E, vec4 S) {
     p.z += .03 * sin(t * .8 + S.w * 20.);
     p.xy += .009 * vec2(sin(t + S.z * 30.), cos(t * 1.1 + S.x * 30.));
     gSize = .95; gAlpha = .95; gCol = ramp(tone * .82 + .04);
-  } else if (id < 2.5) {                           // 2 face mesh, tracked eyes, gaze lines
-    // where the eyes are looking: a slow wander, or the cursor when uGaze.z says so
-    vec2 wander = vec2(.7 * sin(t * .33) + .15 * sin(t * .9), .45 * sin(t * .47 + 1.));
-    vec2 g = mix(wander, uGaze.xy, uGaze.z);
-    // the head turns at most about 25 degrees (including the fixed quarter turn below); the eyes do the rest
-    float yaw = clamp(g.x * .3, -.3, .3), pitch = clamp(-g.y * .22, -.22, .22);
-    vec3 PIV = vec3(0., 0., -.25);
-    vec3 T = vec3(g.x * 1.5, g.y * .95 + .1, 1.9);  // the point being looked at
-    float grp = E.x;
-    float away = smoothstep(.18, .5, length(g));
-    if (grp < .5) {                                // the head: mesh, landmarks, features
-      p = rotX(rotY(p - PIV, yaw), pitch) + PIV;
-      if (E.y < .5) { gSize = .72; gAlpha = .5; }
-      else if (E.y < 1.5) { gSize = 1.25; gAlpha = .95; gCol = ramp(.5); }
-      else { gSize = .95; gAlpha = .95; gCol = ramp(.36 + tone * .25); }
-    } else if (grp < 1.5) {                        // irises turn inside the eye
-      vec3 c = vec3(E.y * EYE.x, EYE.y, EYE.z) + vec3(g.x * .078, g.y * .04, 0.);
-      p = rotX(rotY(c + p - PIV, yaw), pitch) + PIV;
-      gSize = 1.05; gAlpha = 1.; gCol = ramp(.97);
-    } else if (grp < 2.5) {                        // gaze lines from each eye to the target
-      vec3 c = vec3(E.z * EYE.x, EYE.y, EYE.z) + vec3(g.x * .078, g.y * .04, 0.);
-      c = rotX(rotY(c - PIV, yaw), pitch) + PIV;
+  } else if (id < 2.5) {                           // 2 face-tracking landmark mesh
+    vec2 g = uGaze.xy;
+    float blink = uFace.x, grp = E.x;
+    vec3 PIV = vec3(0., -.15, -.6);                // the head turns about a point behind the face
+    vec3 T = vec3(g.x * 1.5, g.y * .95 + .15, 1.9); // the point being looked at
+    vec3 turn = vec3(uEye, 0.);
+    if (grp < .5) {                                // the mesh: thin edges, brighter landmarks
+      p.y += tone * blink;
+      vec3 n = vec3(E.zw, sqrt(max(0., 1. - dot(E.zw, E.zw))));
+      p = headTurn(p - PIV) + PIV;
+      n = rotY(headTurn(n), .12);
+      float mark = step(.75, E.y), outer = step(.25, fract(E.y));
+      float facing = smoothstep(-.25, .55, n.z);   // surfaces turned away are dimmer and smaller
+      float back = smoothstep(-.8, .3, p.z);       // and so is everything further back
+      float rim = max(pow(1. - clamp(n.z, 0., 1.), 3.) * .8, outer * .75);
+      float scan = exp(-pow((p.y - uFace.w) * 15., 2.));
+      float lit = mix(.16, 1., facing) * mix(.45, 1., back);
+      gAlpha = mix(.4, .95, mark) * lit + rim * mix(.3, .15, mark) + scan * .5;
+      gSize = mix(.54, .8 + .5 * facing * back, mark) + scan * .3;
+      gCol = lift(mix(ramp(.5), ramp(1.), uFace.z), min(1., rim * .7 + scan * .8 + mark * .25));
+    } else if (grp < 1.5) {                        // iris ring and pupil, clipped by the lids
+      vec3 q = p + turn;
+      float open = max(1. - blink, .04);
+      float inside = 1. - smoothstep(.85, 1.08, length(q.xy / vec2(EYE_A, EYE_B * 1.25 * open)));
+      p = headTurn(vec3(E.y * EYE.x, EYE.y, EYE.z) + q - PIV) + PIV;
+      gCol = ramp(1.); gAlpha = inside; gSize = tone > .95 ? 1. : .7;
+    } else if (grp < 2.5) {                        // gaze rays: thin, dashed, with a pulse running out
+      vec3 c = headTurn(vec3(E.z * EYE.x, EYE.y, EYE.z) + turn - PIV) + PIV;
       float s = E.y;
-      p = mix(c, T, s) + p * (.4 + s);
-      float band = exp(-pow((s - fract(t * .35)) * 7., 2.));
-      gCol = ramp(.4 + .55 * s);
-      gAlpha = (.42 + .3 * s + band * .6) * away; gSize = .7 + band * .7;
+      p = mix(c, T, s) + p;
+      float dash = .5 + .5 * step(.42, fract(s * 16. - t * .7));
+      float pulse = exp(-pow((s - fract(t * .4)) * 9., 2.));
+      gCol = ramp(1.); gAlpha = (.34 + .26 * s + pulse * .5) * dash * uGaze.z * (1. - blink); gSize = .46 + pulse * .3;
     } else if (grp < 3.5) {                        // reticle on the target
-      p = T + p * (1. + .12 * sin(t * 2.4));
-      gSize = 1.; gAlpha = .95 * away; gCol = ramp(1.);
-    } else {                                       // 20-30 kHz ultrasonic proximity pulse
-      float ph = fract(t * .17 + E.y);
-      p = vec3(p.x, p.y, 0.) * (1.15 + ph * 1.5) + vec3(0., 0., -.3);
-      gAlpha = .42 * (1. - ph) * smoothstep(0., .08, ph); gSize = .7; gCol = ramp(.5);
+      p = T + p * (1. + .08 * sin(t * 2.4));
+      gCol = ramp(1.); gAlpha = .9 * uGaze.z; gSize = .5;
+    } else if (grp < 4.5) {                        // detection box: screen aligned, follows the head
+      p = rotY(vec3(p.xy + vec2(sin(uHead.x) * .4, -sin(uHead.y) * .4), BOX_Z), -.12);
+      gCol = ramp(.5); gAlpha = .8; gSize = .6;
+    } else {                                       // pose gizmo at the nose bridge
+      vec3 d = E.y < .5 ? vec3(1., 0., 0.) : (E.y < 1.5 ? vec3(0., 1., 0.) : vec3(0., 0., 1.));
+      p = headTurn(vec3(0., BRIDGE_Y, BRIDGE_Z + .02) + d * p.x * .36 - PIV) + PIV;
+      gCol = E.y < .5 ? ramp(0.) : (E.y < 1.5 ? ramp(.5) : ramp(1.));
+      gCol = lift(gCol, .5); gAlpha = .95; gSize = .62 + .6 * step(.9, P.x);
     }
-    p = rotY(p, .12) * 1.65;
+    p = rotY(p, .12) * 1.65 * (1. + .006 * uFace.y);
+    p.y += .016 * uFace.y;
   } else if (id < 3.5) {                           // 3 candlestick landscape
     float sgn = E.y, colx = E.z, ph = E.w, kind = E.x;
     float depth = mix(.38, 1., smoothstep(-1.7, 1.7, p.z));   // the far series sit back
@@ -237,7 +256,7 @@ void main() {
   // the pointer pushes points aside, measured in view space so it works wherever the camera is
   vec2 d = mv.xy - uPointer.xy * (-mv.z);
   float r2 = dot(d, d), R = uPointer.w;
-  float f = exp(-r2 / (R * R)) * uPointer.z;
+  float f = exp(-r2 / (R * R)) * uPointer.z * uRepel;
   mv.xy += d / (sqrt(r2) + .001) * f * .45;
   mv.z += f * .6;
 

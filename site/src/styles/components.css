@@ -37,6 +37,13 @@
 .plain a { border-bottom: 1px solid var(--rule); transition: border-color 0.2s, color 0.2s; }
 .plain a:hover { color: var(--accent); border-bottom-color: var(--accent); }
 
+/* the face tracker's read-out: small, quiet, beside the mesh and never over copy */
+.hud { position: fixed; inset: 0 auto auto 0; z-index: 1; pointer-events: none; opacity: 0; transition: opacity 0.5s; color: var(--p2); }
+.hud.on { opacity: 0.9; }
+.hud p { position: absolute; left: 0; top: 0; margin: 0; white-space: pre; font: 500 0.6875rem / 1.45 var(--f-body); font-variant-numeric: tabular-nums; letter-spacing: 0.01em; will-change: transform; }
+.hud p:first-child { color: var(--p3); }
+.is-transitioning .hud { opacity: 0; }
+
 /* page change: while a transition runs, nothing else should react */
 .is-transitioning { cursor: progress; }
 .is-transitioning a { pointer-events: none; }

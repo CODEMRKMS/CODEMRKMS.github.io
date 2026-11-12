@@ -23,8 +23,7 @@ in this file; `PLAN.md`, `DESIGN.md` and `REVIEW.md` still describe v1 and have 
   condenses the new page's form. The intro uses the same cloud and runs under 2 s.
 
 **1c. Set pieces**
-- Face (`genFace`, form id 2): procedural mesh, landmarks, lids, brows, nose, lips, irises, gaze lines to a reticle,
-  ultrasonic rings. The eyes already follow the cursor while it moves.
+- Face (form id 2): replaced in item 2 below.
 - Candles (`genCandles`, form id 3): three series of wireframe candlesticks with wicks, moving averages and volume
   bars. Scroll speed already drives `uVol` (volatility).
 - Voice ring reacts to scroll energy. The contact form breathes and only beats on email hover.
@@ -41,6 +40,19 @@ in this file; `PLAN.md`, `DESIGN.md` and `REVIEW.md` still describe v1 and have 
   (`uBands`, `uBandK`); points fade out inside them, so no line crosses text in either theme. Body copy sits on the
   bare background colour (fg-2 on bg is 7.6:1 in Daylight, 8:1 at night).
 - The form/copy side-by-side layout now needs 900 px as well as a landscape aspect, matching the CSS breakpoint.
+
+**Item 2 (second session): face rebuilt as a landmark mesh. Waiting for review of the screenshots.**
+- Geometry is the MediaPipe canonical face model (468 landmarks, 898 triangles) in `gl/facemesh.ts`. Apache 2.0;
+  the notice and licence text ship in `public/licenses/mediapipe.txt`. `faceGeo()` in `shapes.ts` cuts the eye and
+  mouth openings, opens the lids a little, and computes normals, edges and blink travel.
+- `genFace` spends points on the tracking layer first (irises, gaze rays, reticle, detection box, pose gizmo), then
+  on the landmarks, then evenly along the edges. No outline strokes, no outer rings.
+- Shading in `vert.glsl`: points facing away or further back are dimmer and smaller, rim light on the silhouette,
+  scan line every 5.6 s, amber flash hook (`field.lookAway()`, for the tab-return egg).
+- `faceTick` in `field.ts` runs the head, eyes, saccades, blinks and breathing on the CPU, so the labels show the
+  same values the shader draws. `hud.ts` is the DOM read-out (confidence, yaw, pitch, gaze, fps).
+- Low tier (12k points or fewer): no labels, no gizmo. Pointer repel is almost off on the face (`uRepel`).
+- `node scripts/face.mjs <outDir> [night|day]` shoots the four review captures.
 
 ## Known issues
 - Daylight still uses the v1 instant palette swap (no sun arc, no premultiplied blend). That is Step 2 work.

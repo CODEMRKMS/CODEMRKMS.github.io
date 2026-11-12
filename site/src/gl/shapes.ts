@@ -3,6 +3,7 @@
  * Each shape is a Float32Array of N * 8:  [x, y, z, tone, e0, e1, e2, e3]
  * "tone" and the extras are interpreted by the matching branch in vert.glsl.
  */
+import { FACE_T, FACE_V } from './facemesh';
 
 export const FORM = { stars: 0, name: 1, face: 2, candles: 3, voice: 4, pipeline: 5, docs: 6, pulse: 7 } as const;
 export type FormName = keyof typeof FORM;
@@ -151,108 +152,159 @@ export function sampleText(text: string, font: string): { pts: number[]; w: numb
   }
 }
 
-/* ---------- 2: face mesh with tracked eyes and gaze lines ---------- */
-/** half-width of the face outline at height y (y runs from -1 at the chin to 1 at the crown) */
-function faceHalf(y: number) {
-  if (y >= 0.15) return 0.74 * Math.sqrt(Math.max(0, 1 - Math.pow((y - 0.15) / 0.85, 2)));
-  const s = Math.min(1, (0.15 - y) / 1.15);
-  return 0.74 * (1 - 0.42 * Math.pow(s, 1.5)) * Math.sqrt(Math.max(0, 1 - Math.pow(s, 8)));
-}
-const g2 = (x: number, y: number, cx: number, cy: number, sx: number, sy: number) => Math.exp(-Math.pow((x - cx) / sx, 2) - Math.pow((y - cy) / sy, 2));
-/** depth of the face surface at (x, y): an ellipsoid with a nose, sockets, brow, cheeks, lips and chin */
-function faceZ(x: number, y: number) {
-  const hw = Math.max(0.02, faceHalf(y));
-  const u = Math.min(1, Math.abs(x) / hw);
-  let z = 0.62 * Math.pow(Math.max(0, 1 - u * u), 0.42) * (1 - 0.28 * y * y);
-  const ax = Math.abs(x);
-  // nose: a ridge that grows from the bridge to the tip, then tucks under
-  const ny = Math.max(0, Math.min(1, (0.24 - y) / 0.46));
-  const under = 1 - Math.max(0, Math.min(1, (-0.2 - y) / 0.08));
-  if (y < 0.3 && y > -0.3) z += (0.04 + 0.24 * ny * ny) * under * Math.exp(-Math.pow(x / (0.06 + 0.07 * ny), 2));
-  z -= 0.085 * g2(ax, y, 0.3, 0.2, 0.17, 0.1); // eye sockets
-  z += 0.045 * Math.exp(-Math.pow((y - 0.36) / 0.07, 2)) * (ax < 0.56 ? 1 : 0); // brow ridge
-  z += 0.04 * g2(ax, y, 0.46, -0.04, 0.16, 0.16); // cheekbones
-  z += 0.055 * g2(x, y, 0, -0.5, 0.24, 0.075); // lips
-  z += 0.05 * g2(x, y, 0, -0.84, 0.2, 0.1); // chin
-  return z;
-}
-export const EYE_X = 0.3, EYE_Y = 0.2, EYE_Z = faceZ(0.3, 0.2) + 0.03;
-const inEye = (x: number, y: number) => Math.pow((Math.abs(x) - EYE_X) / 0.165, 2) + Math.pow((y - EYE_Y) / 0.075, 2) < 1;
+/* ---------- 2: face-tracking landmark mesh ---------- */
+// MediaPipe landmark indices: eyelid rings (corner to corner, lower then upper) and the inner lip ring
+const EYE_LOWER = [[33, 7, 163, 144, 145, 153, 154, 155, 133], [263, 249, 390, 373, 374, 380, 381, 382, 362]];
+const EYE_UPPER = [[33, 246, 161, 160, 159, 158, 157, 173, 133], [263, 466, 388, 387, 386, 385, 384, 398, 362]];
+const LIPS_INNER = [78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308, 191, 80, 81, 82, 13, 312, 311, 310, 415];
+/** the detection box drawn around the face (half width, half height, in face units) */
+export const FACE_BOX = { x: 1.0, y: 1.14, z: 0.1 };
 
+export interface FaceGeo {
+  /** landmark positions: face height is 2 units, centred, z forward */
+  v: Float32Array;
+  /** unit vertex normals */
+  n: Float32Array;
+  /** how far each landmark drops (y) when the eyes close */
+  blink: Float32Array;
+  /** mesh edges as landmark index pairs; the eye and mouth openings are left open */
+  edges: Uint16Array;
+  /** 1 for edges on the outer boundary of the mesh */
+  rim: Uint8Array;
+  len: Float32Array;
+  total: number;
+  /** centre of the subject's left eye (the right one mirrors it) and the half axes of its opening */
+  eye: { x: number; y: number; z: number; a: number; b: number };
+  /** the nose bridge, where the pose gizmo sits */
+  bridge: { y: number; z: number };
+}
+let geo: FaceGeo | null = null;
+export function faceGeo(): FaceGeo {
+  if (geo) return geo;
+  const nv = FACE_V.length / 3, nt = FACE_T.length / 3;
+  const S = 1 / 883, YC = -57, ZC = 300;
+  const v = new Float32Array(nv * 3), n = new Float32Array(nv * 3), blink = new Float32Array(nv);
+  for (let i = 0; i < nv; i++) {
+    v[i * 3] = FACE_V[i * 3] * S; v[i * 3 + 1] = (FACE_V[i * 3 + 1] - YC) * S; v[i * 3 + 2] = (FACE_V[i * 3 + 2] - ZC) * S;
+  }
+  // area-weighted vertex normals from the closed surface
+  let flip = 0;
+  for (let t = 0; t < nt; t++) {
+    const a = FACE_T[t * 3] * 3, b = FACE_T[t * 3 + 1] * 3, c = FACE_T[t * 3 + 2] * 3;
+    const ux = v[b] - v[a], uy = v[b + 1] - v[a + 1], uz = v[b + 2] - v[a + 2];
+    const wx = v[c] - v[a], wy = v[c + 1] - v[a + 1], wz = v[c + 2] - v[a + 2];
+    const nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx;
+    flip += nz;
+    for (const k of [a, b, c]) { n[k] += nx; n[k + 1] += ny; n[k + 2] += nz; }
+  }
+  const sg = flip < 0 ? -1 : 1;
+  for (let i = 0; i < nv; i++) {
+    const l = Math.hypot(n[i * 3], n[i * 3 + 1], n[i * 3 + 2]) || 1;
+    n[i * 3] *= sg / l; n[i * 3 + 1] *= sg / l; n[i * 3 + 2] *= sg / l;
+  }
+  // open the eyes a little (the canonical lids are nearly shut) and record how far the upper lid travels in a blink
+  const hole = new Uint8Array(nv), upper = new Uint8Array(nv);
+  for (let e = 0; e < 2; e++) {
+    for (let k = 0; k < 9; k++) {
+      const u = EYE_UPPER[e][k], l = EYE_LOWER[e][k];
+      hole[u] = hole[l] = 1;
+      if (u === l) continue;
+      const gap = v[u * 3 + 1] - v[l * 3 + 1];
+      v[u * 3 + 1] += gap * 0.3; v[l * 3 + 1] -= gap * 0.1;
+      blink[u] = -(v[u * 3 + 1] - v[l * 3 + 1]) * 0.94;
+      upper[u] = 1;
+    }
+  }
+  for (const i of LIPS_INNER) hole[i] = 2;
+  // edges of every triangle that does not close an eye or the mouth
+  const key = (a: number, b: number) => (a < b ? a * 512 + b : b * 512 + a);
+  const count = new Map<number, number>(), keep = new Set<number>();
+  const drag = new Float32Array(nv), dragN = new Float32Array(nv);
+  for (let t = 0; t < nt; t++) {
+    const a = FACE_T[t * 3], b = FACE_T[t * 3 + 1], c = FACE_T[t * 3 + 2];
+    const closed = hole[a] !== 0 && hole[a] === hole[b] && hole[b] === hole[c];
+    for (const [p, q] of [[a, b], [b, c], [c, a]]) {
+      const k = key(p, q);
+      count.set(k, (count.get(k) ?? 0) + 1);
+      if (!closed) keep.add(k);
+      // skin just above the lid follows it a little
+      if (upper[p] && !hole[q]) { drag[q] += blink[p]; dragN[q]++; }
+      if (upper[q] && !hole[p]) { drag[p] += blink[q]; dragN[p]++; }
+    }
+  }
+  for (let i = 0; i < nv; i++) if (dragN[i] && v[i * 3 + 1] > 0.3) blink[i] = (drag[i] / dragN[i]) * 0.3;
+  const edges = new Uint16Array(keep.size * 2), rim = new Uint8Array(keep.size), len = new Float32Array(keep.size);
+  let total = 0, m = 0;
+  for (const k of keep) {
+    const a = Math.floor(k / 512), b = k % 512;
+    edges[m * 2] = a; edges[m * 2 + 1] = b;
+    rim[m] = count.get(k) === 1 ? 1 : 0;
+    len[m] = Math.hypot(v[a * 3] - v[b * 3], v[a * 3 + 1] - v[b * 3 + 1], v[a * 3 + 2] - v[b * 3 + 2]);
+    total += len[m++];
+  }
+  const L = EYE_LOWER[1], U = EYE_UPPER[1];
+  let ex = 0, ey = 0, ez = 0;
+  for (const i of [...L, ...U]) { ex += v[i * 3] / 18; ey += v[i * 3 + 1] / 18; ez += v[i * 3 + 2] / 18; }
+  geo = {
+    v, n, blink, edges, rim, len, total,
+    eye: { x: ex, y: ey, z: ez - 0.015, a: Math.abs(v[L[0] * 3] - v[L[8] * 3]) / 2, b: (v[U[4] * 3 + 1] - v[L[4] * 3 + 1]) / 2 },
+    bridge: { y: v[168 * 3 + 1], z: v[168 * 3 + 2] },
+  };
+  return geo;
+}
+
+/**
+ * e0 is the group: 0 mesh (e1 = 0 edge, 1 landmark, +0.5 on the outer boundary; e2, e3 = normal xy; tone = blink travel),
+ * 1 iris (e1 = side), 2 gaze ray (e1 = distance along it, e2 = side), 3 reticle, 4 detection box, 5 pose gizmo (e1 = axis).
+ */
 export function genFace(N: number, r: Rnd): Float32Array {
   const o = new Float32Array(N * STRIDE);
+  const g = faceGeo(), nv = g.v.length / 3, ne = g.len.length;
+  const low = N <= 12000;
   let i = 0;
-  const take = (f: number) => Math.floor(N * f);
-  const onFace = (x: number, y: number, tone: number, kind: number, lift = 0.012) => put(o, i++, x, y, faceZ(x, y) + lift, tone, 0, kind);
-
-  // the mesh: lines of constant height and meridians that converge at the crown and the chin
-  const ROWS = 23, COLS = 15;
-  const rowY = (k: number) => -0.95 + (1.9 * k) / (ROWS - 1);
-  const colU = (k: number) => -0.93 + (1.86 * k) / (COLS - 1);
-  for (let n = take(0.4); n > 0; n--) {
-    let x: number, y: number;
-    do {
-      if (r() < 0.52) { y = rowY(Math.floor(r() * ROWS)); x = (r() * 2 - 1) * 0.97 * faceHalf(y); }
-      else { y = -0.97 + r() * 1.94; x = colU(Math.floor(r() * COLS)) * faceHalf(y); }
-    } while (inEye(x, y));
-    onFace(x, y, 0.1 + r() * 0.16, 0, 0);
+  const perV = N < 6000 ? 1 : low ? 2 : 4;
+  // tracking layer first, so it is complete whatever is left for the mesh
+  const nIris = low ? 80 : 170, nRay = low ? 110 : 230, nRet = low ? 90 : 190, nBox = low ? 240 : 640, nAxis = low ? 0 : 110;
+  for (const side of [-1, 1]) {
+    for (let k = 0; k < nIris; k++) {
+      const a = (k / nIris) * 6.2832 * 3;
+      if (k % 5 === 0) { const rr = Math.sqrt(r()) * 0.017, b = r() * 6.2832; put(o, i++, Math.cos(b) * rr, Math.sin(b) * rr, 0, 1, 1, side); }
+      else put(o, i++, Math.cos(a) * 0.058, Math.sin(a) * 0.058, 0, 0.9, 1, side);
+    }
+    for (let k = 0; k < nRay; k++) put(o, i++, gauss(r) * 0.003, gauss(r) * 0.003, 0, 1, 2, (k + r()) / nRay, side);
   }
-  // tracked landmarks sit on the mesh crossings
-  for (let n = take(0.08); n > 0; n--) {
-    let x: number, y: number;
-    do { y = rowY(Math.floor(r() * ROWS)); x = colU(Math.floor(r() * COLS)) * faceHalf(y); } while (inEye(x, y));
-    const a = r() * 6.2832, rr = Math.sqrt(r()) * 0.011;
-    onFace(x + Math.cos(a) * rr, y + Math.sin(a) * rr, 0.5, 1);
+  for (let k = 0; k < nRet; k++) {
+    const v = k / nRet, a = v * 6.2832 * 4;
+    if (v < 0.5) put(o, i++, Math.cos(a) * 0.05, Math.sin(a) * 0.05, 0, 1, 3);
+    else if (v < 0.94) { const q = Math.floor(r() * 4) * 1.5708, d = 0.068 + r() * 0.05; put(o, i++, Math.cos(q) * d, Math.sin(q) * d, 0, 1, 3); }
+    else put(o, i++, gauss(r) * 0.004, gauss(r) * 0.004, 0, 1, 3);
   }
-  // outline
-  for (let n = take(0.07); n > 0; n--) {
-    const y = -1 + r() * 2, sgn = r() < 0.5 ? -1 : 1;
-    put(o, i++, sgn * faceHalf(y), y, -0.02, 0.36, 0, 2);
+  for (let k = 0; k < nBox; k++) {
+    const cx = k & 1 ? 1 : -1, cy = k & 2 ? 1 : -1, d = r() * 0.24;
+    if (k & 4) put(o, i++, cx * (FACE_BOX.x - d), cy * FACE_BOX.y, 0, 0, 4);
+    else put(o, i++, cx * FACE_BOX.x, cy * (FACE_BOX.y - d), 0, 0, 4);
   }
-  // eyelids
-  for (let n = take(0.05); n > 0; n--) {
-    const sgn = r() < 0.5 ? -1 : 1, d = (r() * 2 - 1) * 0.16, q = Math.pow(Math.max(0, 1 - Math.pow(d / 0.16, 2)), 0.8);
-    onFace(sgn * (EYE_X + d), EYE_Y + (r() < 0.58 ? 0.072 : -0.05) * q, 0.52, 2);
+  for (let ax = 0; ax < 3; ax++) for (let k = 0; k < nAxis; k++) put(o, i++, (k + 0.5) / nAxis, 0, 0, 0, 5, ax);
+  // landmarks: a tight cluster reads as one brighter dot
+  for (let k = 0; k < nv && i < N; k++) {
+    for (let j = 0; j < perV && i < N; j++) {
+      const jx = j ? gauss(r) * 0.003 : 0, jy = j ? gauss(r) * 0.003 : 0;
+      put(o, i++, g.v[k * 3] + jx, g.v[k * 3 + 1] + jy, g.v[k * 3 + 2], g.blink[k], 0, 1, g.n[k * 3], g.n[k * 3 + 1]);
+    }
   }
-  // brows
-  for (let n = take(0.035); n > 0; n--) {
-    const sgn = r() < 0.5 ? -1 : 1, t = r();
-    onFace(sgn * (0.13 + 0.38 * t), 0.37 + 0.05 * Math.sin(Math.PI * Math.pow(t, 0.8)) - 0.03 * t + (r() - 0.5) * 0.022 * (1 - t * 0.6), 0.5, 2);
-  }
-  // nose: two lines down from the bridge, the wings and the tip
-  for (let n = take(0.04); n > 0; n--) {
-    const sgn = r() < 0.5 ? -1 : 1, v = r();
-    if (v < 0.55) { const t = r(); onFace(sgn * (0.045 + 0.07 * t * t), 0.22 - 0.44 * t, 0.46, 2); }
-    else if (v < 0.85) { const a = -0.3 + r() * 3.2; onFace(sgn * (0.1 + Math.cos(a) * 0.045), -0.25 - Math.sin(a) * 0.04, 0.46, 2); }
-    else { const a = Math.PI + r() * Math.PI; onFace(Math.cos(a) * 0.055, -0.245 + Math.sin(a) * 0.03, 0.46, 2); }
-  }
-  // lips
-  for (let n = take(0.045); n > 0; n--) {
-    const x = (r() * 2 - 1) * 0.25, q = Math.pow(Math.max(0, 1 - Math.pow(x / 0.25, 2)), 0.7), v = r();
-    const y = v < 0.36 ? -0.5 + 0.05 * q * (1 - 0.4 * Math.exp(-Math.pow(x / 0.045, 2))) : v < 0.66 ? -0.502 - 0.012 * q : -0.5 - 0.068 * q;
-    onFace(x, y, 0.5, 2);
-  }
-  // irises: stored relative to the eye centre so the shader can turn them
-  for (let n = take(0.04); n > 0; n--) {
-    const sgn = r() < 0.5 ? -1 : 1, a = r() * 6.2832;
-    const rr = r() < 0.6 ? 0.058 + (r() - 0.5) * 0.008 : Math.sqrt(r()) * 0.026;
-    put(o, i++, Math.cos(a) * rr, Math.sin(a) * rr, 0, 0.95, 1, sgn);
-  }
-  // gaze lines: one per eye, e1 is the distance along the line
-  for (let n = take(0.13); n > 0; n--) {
-    const t = Math.pow(r(), 0.8);
-    put(o, i++, gauss(r) * 0.012, gauss(r) * 0.012, gauss(r) * 0.012, 0.45 + 0.5 * t, 2, t, r() < 0.5 ? -1 : 1);
-  }
-  // the point being looked at: a ring and a cross
-  for (let n = take(0.02); n > 0; n--) {
-    const v = r(), a = r() * 6.2832;
-    if (v < 0.6) put(o, i++, Math.cos(a) * 0.1, Math.sin(a) * 0.1, 0, 1, 3);
-    else { const d = (r() * 2 - 1) * 0.16; put(o, i++, v < 0.8 ? d : 0, v < 0.8 ? 0 : d, 0, 1, 3); }
-  }
-  // ultrasonic proximity pulses around the head
-  for (; i < N; ) {
-    const ph = r() * 6.2831853, j = Math.floor(r() * 3);
-    put(o, i++, Math.cos(ph), Math.sin(ph), 0, 0.3, 4, j / 3 + r() * 0.002);
+  // everything else is spent on the edges, evenly along their length
+  const budget = N - i;
+  let acc = 0;
+  for (let e = 0; e < ne; e++) {
+    const before = Math.floor(acc);
+    acc += (g.len[e] / g.total) * budget;
+    const cnt = e === ne - 1 ? N - i : Math.floor(acc) - before;
+    const a = g.edges[e * 2], b = g.edges[e * 2 + 1], kind = g.rim[e] ? 0.5 : 0;
+    for (let k = 0; k < cnt && i < N; k++) {
+      const t = (k + 0.5) / cnt, s = 1 - t;
+      put(o, i++, g.v[a * 3] * s + g.v[b * 3] * t, g.v[a * 3 + 1] * s + g.v[b * 3 + 1] * t, g.v[a * 3 + 2] * s + g.v[b * 3 + 2] * t,
+        g.blink[a] * s + g.blink[b] * t, 0, kind, g.n[a * 3] * s + g.n[b * 3] * t, g.n[a * 3 + 1] * s + g.n[b * 3 + 1] * t);
+    }
   }
   return o;
 }

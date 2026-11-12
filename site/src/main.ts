@@ -6,6 +6,7 @@ import type { PointField } from './gl/field';
 import { initTheme } from './theme';
 import { initWidthAxis } from './type';
 import { Router } from './router';
+import { initFaceHud } from './hud';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -65,6 +66,7 @@ async function boot() {
     ]);
     await fontReady;
     await field.build('Anybody, "Arial Black", sans-serif');
+    initFaceHud(field);
     const tl = field.intro();
     if (!reduced) {
       // skippable: any scroll, click, touch or key finishes the intro quickly
