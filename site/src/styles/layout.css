@@ -31,7 +31,7 @@
   align-content: end; padding: 120px var(--pad) clamp(40px, 7vh, 80px);
 }
 .hero > * { grid-column: 1 / -1; }
-.hero-name { font-size: min(var(--t-6), calc((100vw - 2 * var(--pad)) / 5)); margin-bottom: 0.2em; }
+.hero-name { font-size: min(var(--t-6), calc((100vw - 2 * var(--pad)) / 5.8)); margin-bottom: 0.2em; }
 html.gl .hero-name { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); }
 .hero-lede { grid-column: 1 / span 7; font-size: var(--t-2); line-height: 1.25; max-width: 28ch; }
 .hero-sub { grid-column: 9 / span 4; align-self: end; color: var(--fg-2); max-width: 36ch; font-size: 0.97rem; }
@@ -78,15 +78,17 @@ html.gl .hero-name { position: absolute; width: 1px; height: 1px; margin: -1px; 
 .awards-stage { padding-bottom: 12vh; }
 .award-list { display: grid; gap: 1.35rem; max-width: 40rem; margin-top: 2.4rem; }
 .award-list .lbl { display: block; font-size: 0.97rem; line-height: 1.45; color: var(--fg-2); }
-.award-list strong { display: block; color: var(--fg); font-weight: 600; font-size: 1.02rem; }
+/* inline, so "Title, detail" reads as the sentence it is (as a block the detail line began with a comma) */
+.award-list strong { color: var(--fg); font-weight: 600; font-size: 1.02rem; }
 @media (min-width: 900px) {
-  .awards { padding: 0; min-height: 230svh; }
-  .awards-stage { position: sticky; top: 0; height: 100svh; padding: clamp(96px, 13vh, 132px) var(--pad) 0; }
-  .constellation { position: absolute; inset: 0; pointer-events: none; }
-  .constellation .award-list { display: block; max-width: none; margin: 0; }
-  .constellation li { position: absolute; left: 0; top: 0; width: max-content; max-width: min(250px, 19vw); will-change: transform; visibility: hidden; }
-  .constellation.is-placed li { visibility: visible; }
-  .constellation .lbl { transform: translate(16px, -0.8em); text-shadow: 0 0 10px var(--bg), 0 0 3px var(--bg); }
+  /* labels ride on their stars only when there is a scene; without WebGL the list simply flows, as on phones */
+  html.gl .awards { padding: 0; min-height: 230svh; }
+  html.gl .awards-stage { position: sticky; top: 0; height: 100svh; padding: clamp(96px, 13vh, 132px) var(--pad) 0; }
+  html.gl .constellation { position: absolute; inset: 0; pointer-events: none; }
+  html.gl .constellation .award-list { display: block; max-width: none; margin: 0; }
+  html.gl .constellation li { position: absolute; left: 0; top: 0; width: max-content; max-width: min(250px, 19vw); will-change: transform; visibility: hidden; }
+  html.gl .constellation.is-placed li { visibility: visible; }
+  html.gl .constellation .lbl { transform: translate(16px, -0.8em); text-shadow: 0 0 10px var(--bg), 0 0 3px var(--bg); }
 }
 
 /* ---------- contact ---------- */

@@ -115,8 +115,22 @@ in this file; `PLAN.md`, `DESIGN.md` and `REVIEW.md` still describe v1 and have 
   `_lighthouse-eval.js`, probably the probe's context creation). Not yet diagnosed. Real-GPU score unmeasured.
 - Tried and reverted, unverified: keeping `.hero-name` as visible text until `html.gl-ready` (LCP 3.3 s -> 2.0 s),
   because it changes the hero layout and was not checked visually.
-- Still owed: reduced-motion review of every form (captures taken, not reviewed), keyboard walk-through, focus
-  visibility, AA contrast in both themes including text over bloom, Lighthouse perf 90+.
+- Reduced motion (third session): every home form reviewed at 1440 night and 375 Daylight. All are still, legible
+  poses. Nothing to fix.
+- Keyboard (third session): `node scripts/a11y.mjs <outDir> keys` tabs through all six pages. Every stop has a focus
+  ring, the order follows the page, nothing is covered. Fixed: `scroll-padding` on `html` so a focused element is
+  never under the fixed header or flush with the bottom edge; hash links the router intercepts (skip link, `#work`,
+  `#contact`) now move focus to their target.
+- No-WebGL page (third session): the awards list was invisible at 900 px and wider (the star-label layout is now
+  scoped to `html.gl`); the hero name overflowed a 375 px screen (divisor 5 -> 5.8). Award titles are inline, so the
+  detail line no longer starts with a comma.
+- NOT VERIFIED IN A BROWSER: the three fixes above (scroll-padding, hash focus, no-WebGL awards and hero name) were
+  built but not captured, because the preview server was stopped when the machine ran low on memory.
+- Contrast: `node scripts/a11y.mjs <outDir> contrast` compares each text colour with the pixels really behind it.
+  A first run reported 5 to 16 failing elements per page but was killed before printing which ones. Rerun it
+  (set `PAGES=/` and `SIZES=1440x900` to keep it small), then fix.
+- Still owed: the contrast rerun and fixes, Lighthouse perf 90+ (the ~2 s long task on software-only browsers;
+  idea: run the `gpuAvailable()` probe on an OffscreenCanvas in a worker).
 
 ## Known issues
 - No 404 page yet. `old-site/` is dead code still in the repo.

@@ -2,7 +2,9 @@
 *::before,
 *::after { box-sizing: border-box; }
 
-html { background: var(--bg); -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+/* scroll-padding: a focused or targeted element never ends up under the fixed header or flush with the bottom edge */
+html { background: var(--bg); -webkit-text-size-adjust: 100%; text-size-adjust: 100%; scroll-padding: 88px 0 32px; }
+@media (max-width: 719px) { html { scroll-padding-top: 116px; } }
 html.lenis, html.lenis body { height: auto; }
 .lenis.lenis-smooth { scroll-behavior: auto !important; }
 
@@ -50,7 +52,7 @@ html.no-gl .sky, html:not(.js) .sky { display: block; }
 
 main, .site-footer, .site-header { position: relative; z-index: 2; }
 main { display: block; outline: none; }
-main[tabindex='-1']:focus { outline: none; }
+main[tabindex='-1']:focus, section[tabindex='-1']:focus { outline: none; }
 
 /* ---------- type ---------- */
 .display {

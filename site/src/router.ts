@@ -71,6 +71,9 @@ export class Router {
     if (!el) return;
     if (this.ctx.lenis) this.ctx.lenis.scrollTo(el, { immediate });
     else el.scrollIntoView({ behavior: immediate || this.ctx.reduced ? 'auto' : 'smooth' });
+    // the click was intercepted, so move focus by hand: the next Tab continues from the target (skip link, #work, #contact)
+    if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1');
+    el.focus({ preventScroll: true });
     history.replaceState(history.state, '', location.pathname + hash);
   }
 
