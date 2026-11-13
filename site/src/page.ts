@@ -91,6 +91,9 @@ export function initPage(main: HTMLElement, ctx: Ctx, opts: { first: boolean }):
     cleanups.push(hover(main));
   }
 
+  // no scene: still drawings of the forms take its place
+  if (!field) void import('./nogl').then((m) => { m.drawFallback(main); ScrollTrigger.refresh(); });
+
   /* ----- forms follow the sections ----- */
   if (field) {
     // One scrubbed trigger maps scroll to a position on the route. Each station hands over to the next

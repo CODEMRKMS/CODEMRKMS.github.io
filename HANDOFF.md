@@ -141,6 +141,9 @@ in this file; `PLAN.md`, `DESIGN.md` and `REVIEW.md` still describe v1 and have 
   synthetic orientation events in headless Chromium, NOT on a real phone.
 - Text selection: `::selection` uses the accent colour; selecting 24+ characters of copy shows the toast
   "signal selected" once per visit. Not one of the eight counted eggs; off with reduced motion.
+- No-WebGL drawings (`nogl.ts`, fetched only when there is no scene): each `.sec[data-form]` with kind left/right
+  gets a still SVG line drawing of its form (the face is the real landmark mesh), on the form's side on wide screens
+  and above the copy on phones. Checked with `?nogl` at 1440 and 375 in both themes.
 
 ## Known issues
 - `old-site/` is dead code still in the repo.
@@ -155,8 +158,10 @@ Measured there: 60 fps at 40k points, DPR 1, bloom 4 levels, top level of the hi
 DPR 2, and fill rate while the camera flies between stations. All screenshots so far are SwiftShader at DPR 1.
 
 ## Remaining work, in the approved order
-1. **Item 7, only if budget remains** (done: 404 mini-game, gyroscope parallax, text-selection egg): idle Pong,
-   name-click doodle, sound toggle, no-WebGL SVG drawings. Keep the counter at n/8.
+1. **Item 7, only if budget remains** (done: 404 mini-game, gyroscope parallax, text-selection egg, no-WebGL
+   SVG drawings). Left, each needs a decision from the owner first: idle Pong (a paddle-and-ball idle toy under another
+   name; Pong itself is someone else's game), name-click doodle (what should it draw?), sound toggle (sounds cannot
+   be judged without hearing them). Keep the counter at n/8.
 2. Rewrite the cursor, tilt and glow lines in `DESIGN.md`; update `PLAN.md` and `REVIEW.md`.
 ## How to run
 ```
