@@ -11,6 +11,7 @@ uniform vec2 uEye;                 // how far the irises have turned inside the 
 uniform vec3 uPipe;                // pipeline: failure, flow offset (negative = rolling back), all-green flash
 uniform float uNameHide;           // the wordmark steps aside while its letters are out as a pile
 uniform vec4 uBox;                 // detection box around the turned head: centre xy, half size
+uniform vec4 uToy;                 // the drone: offset xy, roll
 const vec3 EYE = vec3(EYE_X, EYE_Y, EYE_Z);
 uniform vec3 uLayoutA, uLayoutB;   // scale, cx, cy of the form inside its station
 uniform vec3 uStationA, uStationB; // world position of the two stations being travelled between
@@ -193,7 +194,7 @@ vec3 form(float id, vec4 P, vec4 E, vec4 S) {
     gCol = mix(ramp(.4), grp < .5 ? ramp(.5) : (grp < 1.5 ? ramp(1.) : ramp(0.)), s);
     gAlpha = mix(.75, grp > 1.5 ? .4 : .95, s); gSize = .85;
     p = rotY(p, -.28);
-  } else {                                         // 7 a calm, breathing core; the heartbeat only shows on demand
+  } else if (id < 7.5) {                           // 7 a calm, breathing core; the heartbeat only shows on demand
     float ph = fract(uBeat);
     float hb = smoothstep(0., .05, ph) * exp(-ph * 5.5) + .55 * smoothstep(.2, .25, ph) * exp(-(ph - .2) * 9.);
     float br = .5 + .5 * sin(t * .55);
@@ -206,6 +207,13 @@ vec3 form(float id, vec4 P, vec4 E, vec4 S) {
       gAlpha = mix(.2 + .14 * br, .08 + .5 * (1. - ph) * (1. - ph), uBeatAmt); gCol = ramp(.25 + .3 * tone); gSize = .8;
     }
     p = rotY(p, t * .06);
+  } else {                                         // 8 the drone: plain points, flown as one body
+    float grp = E.x;
+    gSize = E.y; gAlpha = E.z;
+    if (grp > 3.5) {                               // airframe (4) and rotors (5)
+      if (grp > 4.5) gAlpha *= .5 + .5 * sin(t * 38. + S.w * 60.);
+      p = rotZ(p, uToy.z); p.xy += uToy.xy;
+    } else p.xy += .02 * vec2(sin(t * .5 + S.z * 30.), cos(t * .4 + S.x * 30.));  // loose dust left behind
   }
   return p;
 }

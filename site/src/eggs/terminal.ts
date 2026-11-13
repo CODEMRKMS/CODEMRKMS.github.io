@@ -19,7 +19,7 @@ const HELLO = 'If you are building something where the data is messy and the ans
 const MAIL = 'itskmshadab@gmail.com';
 const HELP: [string, string][] = [
   ['help', 'this list'], ['whoami', 'who made this'], ['projects', 'selected work'], ['resume', 'open the PDF'],
-  ['sudo hire-me', 'say hello'], ['theme', 'switch Daylight / Night'], ['matrix', 'rain'], ['exit', 'close (Esc works too)'],
+  ['sudo hire-me', 'say hello'], ['theme', 'switch Daylight / Night'], ['matrix', 'rain'], ['drone', 'fly-past (home page, top)'], ['exit', 'close (Esc works too)'],
 ];
 
 let dlg: HTMLDialogElement | null = null;
@@ -124,6 +124,12 @@ export function openTerminal(api: EggApi) {
       document.querySelector<HTMLButtonElement>('.theme-toggle')?.click();
       out(document.documentElement.dataset.theme === 'day' ? 'Daylight' : 'Night');
     } else if (c === 'matrix') matrix();
+    else if (c === 'drone') {
+      if (api.reduced) out('the drone stays grounded while reduced motion is on.');
+      else void import('./drone').then((m) => {
+        if (m.flyDrone(api)) { api.mark('drone'); d.close(); } else out('the drone launches from the name: go to the top of the home page.');
+      });
+    }
     else if (c === 'exit' || c === 'quit' || c === ':q') d.close();
     else if (c === 'clear') log.textContent = '';
     else if (/^git push (--force|-f)\b/.test(c) || c === 'git push origin main --force') forcePush();

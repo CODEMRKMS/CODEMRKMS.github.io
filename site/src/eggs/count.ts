@@ -1,11 +1,14 @@
 /** The egg counter: which eggs have been found (localStorage) and the line in the footer that reports it. */
-export const EGGS = ['console', 'terminal', 'hire', 'force', 'konami', 'away', 'eyes', 'volatile'] as const;
+export const EGGS = ['console', 'terminal', 'hire', 'force', 'konami', 'away', 'eyes', 'volatile', 'drone', 'select', 'game'] as const;
 export type Egg = (typeof EGGS)[number];
 
 const KEY = 'eggs';
 let found = new Set<Egg>();
 let line: HTMLElement | null = null;
 let onAll: (() => void) | null = null;
+// the eggs that can be found in this browser: fewer with reduced motion or without the WebGL scene
+let avail: readonly Egg[] = EGGS;
+const have = () => avail.filter((e) => found.has(e)).length;
 
 function read(): Set<Egg> {
   try {
@@ -17,7 +20,7 @@ function read(): Set<Egg> {
 }
 
 function paint() {
-  if (!found.size) return;
+  if (!have()) return;
   if (!line) {
     const foot = document.querySelector('.foot');
     if (!foot) return;
@@ -26,22 +29,24 @@ function paint() {
     line.setAttribute('role', 'status');
     foot.appendChild(line);
   }
-  line.textContent = `eggs found: ${found.size}/${EGGS.length}`;
+  line.textContent = `eggs found: ${have()}/${avail.length}`;
 }
 
-export function initCount(all: () => void) {
+export function initCount(all: () => void, available: readonly Egg[] = EGGS) {
   onAll = all;
+  avail = available;
   found = read();
   paint();
 }
 
 /** record a find; returns true when it is a new one */
 export function mark(id: Egg): boolean {
-  if (found.has(id)) return false;
+  if (found.has(id) || !avail.includes(id)) return false;
   found.add(id);
   try { localStorage.setItem(KEY, JSON.stringify([...found])); } catch { /* storage unavailable: the count lasts for this visit */ }
   paint();
-  if (found.size === EGGS.length) onAll?.();
+  if (have() === avail.length) onAll?.();
   return true;
 }
-export function total() { return found.size; }
+export function total() { return have(); }
+export function available() { return avail.length; }

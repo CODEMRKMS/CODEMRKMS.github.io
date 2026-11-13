@@ -48,6 +48,9 @@ const PALETTE = {
 // the head turns about a point behind the face (matches PIV in vert.glsl)
 const PIV_Y = -0.15, PIV_Z = -0.6;
 
+/** the extra form slot a toy is installed into */
+const TOY = FORM_COUNT;
+
 const smooth = (t: number) => t * t * (3 - 2 * t);
 const smoother = (t: number) => t * t * t * (t * (t * 6 - 15) + 10);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -80,8 +83,10 @@ export class PointField {
   private sceneryGeo = new BufferGeometry();
   private sceneryMat: ShaderMaterial;
   private scenery: Points;
-  private pos: (InterleavedBufferAttribute | null)[] = new Array(FORM_COUNT).fill(null);
-  private ext: (InterleavedBufferAttribute | null)[] = new Array(FORM_COUNT).fill(null);
+  private pos: (InterleavedBufferAttribute | null)[] = new Array(FORM_COUNT + 1).fill(null);
+  private ext: (InterleavedBufferAttribute | null)[] = new Array(FORM_COUNT + 1).fill(null);
+  // a toy (the drone) borrows the points of the form on screen for a while
+  private over = { on: false, k: 0, stop: -1, size: [6, 3.6] as readonly [number, number], shrink: 1 };
   private ready = false;
   private font = 'sans-serif';
 
@@ -202,7 +207,7 @@ export class PointField {
         uStationA: { value: new Vector3() }, uStationB: { value: new Vector3() }, uFocus: { value: new Vector3() },
         uPointer: { value: new Vector4(0, 0, 0, 1.15) }, uSwirl: { value: 0 }, uPtrVel: { value: new Vector2() },
         uDens: { value: Math.min(1.5, Math.pow(40000 / this.N, 0.33)) }, uRepel: { value: 1 },
-        uGaze: { value: new Vector3() }, uHead: { value: new Vector3() }, uFace: { value: new Vector4(0, 0, 0, 9) }, uEye: { value: new Vector2() }, uBox: { value: new Vector4(0, 0, 1, 1.1) }, uPipe: { value: new Vector3() }, uNameHide: { value: 0 }, uVol: { value: 0 }, uEnergy: { value: 0 }, uBeatAmt: { value: 0 },
+        uGaze: { value: new Vector3() }, uHead: { value: new Vector3() }, uFace: { value: new Vector4(0, 0, 0, 9) }, uEye: { value: new Vector2() }, uBox: { value: new Vector4(0, 0, 1, 1.1) }, uPipe: { value: new Vector3() }, uToy: { value: new Vector4() }, uNameHide: { value: 0 }, uVol: { value: 0 }, uEnergy: { value: 0 }, uBeatAmt: { value: 0 },
         uTextMask: { value: new Vector4(0, 0, 0.12, 0) },
       },
     });
@@ -309,7 +314,7 @@ export class PointField {
       if (Math.abs(B[i].x - top) > 1e-4 || Math.abs(B[i].y - bot) > 1e-4) { B[i].set(top, bot); this.dirty = true; }
     }
   }
-  private layoutFor(form: FormName, kind: Kind): Layout {
+  private layoutFor(form: FormName, kind: Kind, size?: readonly [number, number]): Layout {
     const aspect = this.aspect;
     const viewH = 2 * CAM_Z * Math.tan((FOV * Math.PI) / 360);
     const viewW = viewH * aspect;
@@ -318,7 +323,7 @@ export class PointField {
       const s = Math.min(1.15, Math.max(0.45, viewW / 9.5));
       return kind === 'hero' && this.wide ? { s: s * 0.9, x: 0, y: -viewH * 0.1 } : { s, x: 0, y: 0 };
     }
-    const [w, h] = SIZE[form];
+    const [w, h] = size ?? SIZE[form];
     const wide = this.wide;
     if (form === 'name') {
       const s = wide ? Math.min((viewW * 0.72) / w, (viewH * 0.55) / h) : (viewW * 0.9) / w;
@@ -550,13 +555,28 @@ export class PointField {
     const same = A.form === B.form;
     const U = this.mat.uniforms;
 
-    this.bind(A.form, B.form);
-    U.uProgress.value = t;
-    U.uTurb.value = same ? 0.15 : 1;
-    (U.uLayoutA.value as Vector3).set(A.lay.s, A.lay.x, A.lay.y);
-    (U.uLayoutB.value as Vector3).set(B.lay.s, B.lay.x, B.lay.y);
-    (U.uStationA.value as Vector3).copy(A.w);
-    (U.uStationB.value as Vector3).copy(B.w);
+    // a toy only lives while the reader stays put on the station it started on
+    const oi = Math.round(this.u), O = this.stops[oi];
+    if (this.over.on && (!O || oi !== this.over.stop || Math.abs(this.u - oi) > 0.06)) this.dropToy();
+    if (this.over.on && O) {
+      const kind: Kind = O.kind === 'left' || O.kind === 'right' ? O.kind : 'hero';
+      const L = this.layoutFor('pulse', kind, this.over.size);
+      this.bind(O.form, TOY);
+      U.uProgress.value = this.over.k;
+      U.uTurb.value = 0.55;
+      (U.uLayoutA.value as Vector3).set(O.lay.s, O.lay.x, O.lay.y);
+      (U.uLayoutB.value as Vector3).set(L.s * this.over.shrink, L.x, L.y);
+      (U.uStationA.value as Vector3).copy(O.w);
+      (U.uStationB.value as Vector3).copy(O.w);
+    } else {
+      this.bind(A.form, B.form);
+      U.uProgress.value = t;
+      U.uTurb.value = same ? 0.15 : 1;
+      (U.uLayoutA.value as Vector3).set(A.lay.s, A.lay.x, A.lay.y);
+      (U.uLayoutB.value as Vector3).set(B.lay.s, B.lay.x, B.lay.y);
+      (U.uStationA.value as Vector3).copy(A.w);
+      (U.uStationB.value as Vector3).copy(B.w);
+    }
     const m = smooth(t);
     (U.uTextMask.value as Vector4).set(lerp(A.mask.side, B.mask.side, m), lerp(A.mask.edge, B.mask.edge, m), lerp(A.mask.soft, B.mask.soft, m), lerp(A.mask.k, B.mask.k, m));
     U.uDim.value = lerp(A.mask.dim, B.mask.dim, m);
@@ -685,6 +705,40 @@ export class PointField {
       .to(p, { z: 1, duration: 0.3, ease: 'power2.out' }, 3.4)
       .to(p, { z: 0, duration: 1.2, ease: 'power2.in' }, 3.9);
   }
+  /* ---------- toys: the points on screen re-form into something else for a while ---------- */
+  /** true while resting on a form that has clear space of its own (not the star field, which sits behind copy) */
+  get toyReady() { const at = this.resting; return this.ready && !this.reduced && !this.over.on && !!at && at.form !== 'stars'; }
+  get toyOn() { return this.over.on; }
+  /** hand over N records (STRIDE floats each: x y z tone, group size alpha 0). size is the toy's extent in its own units. */
+  showToy(data: Float32Array, size: readonly [number, number], shrink = 1, duration = 1.2): boolean {
+    if (!this.toyReady || data.length !== this.N * STRIDE) return false;
+    const cur = this.pos[TOY];
+    if (cur) { (cur.data.array as Float32Array).set(data); cur.data.needsUpdate = true; } else this.install(TOY, data);
+    (this.mat.uniforms.uToy.value as Vector4).set(0, 0, 0, 0);
+    this.over.on = true; this.over.k = 0; this.over.stop = Math.round(this.u); this.over.size = size; this.over.shrink = shrink;
+    gsap.killTweensOf(this.over);
+    gsap.to(this.over, { k: 1, duration, ease: 'power2.inOut' });
+    return true;
+  }
+  /** the points go back to the form they came from */
+  hideToy(duration = 0.7) {
+    if (!this.over.on) return;
+    gsap.killTweensOf(this.over);
+    gsap.to(this.over, { k: 0, duration, ease: 'power2.inOut', onComplete: () => this.dropToy() });
+  }
+  private dropToy() { gsap.killTweensOf(this.over); this.over.on = false; this.over.k = 0; }
+  setToy(x: number, y: number, z: number, w: number) { (this.mat.uniforms.uToy.value as Vector4).set(x, y, z, w); }
+  /** where the particle wordmark is on screen (css px), or null when it is not the form in front of the camera */
+  nameRect(): { x0: number; y0: number; x1: number; y1: number } | null {
+    const at = this.resting, s = this.stops[Math.round(this.u)];
+    if (!at || at.form !== 'name' || !s || this.over.on) return null;
+    const [w, h] = SIZE.name, k = s.lay.s;
+    const a = this.tmp.set(s.lay.x - (w * k) / 2 + s.w.x, s.lay.y + (h * k) / 2 + s.w.y, s.w.z).project(this.camera);
+    const x0 = (a.x * 0.5 + 0.5) * this.sizeW, y0 = (-a.y * 0.5 + 0.5) * this.sizeH;
+    a.set(s.lay.x + (w * k) / 2 + s.w.x, s.lay.y - (h * k) / 2 + s.w.y, s.w.z).project(this.camera);
+    return { x0, y0, x1: (a.x * 0.5 + 0.5) * this.sizeW, y1: (-a.y * 0.5 + 0.5) * this.sizeH };
+  }
+
   /** small devices get the mesh, irises and gaze rays only */
   get low() { return this.N <= 12000; }
   /** live values for the labels beside the face. False when they should not be shown. */

@@ -245,6 +245,7 @@ export function initPage(main: HTMLElement, ctx: Ctx, opts: { first: boolean }):
       play.addEventListener('click', () => {
         game?.stop();
         if (status) status.textContent = 'Catch the amber signals. Escape ends the game.';
+        window.dispatchEvent(new CustomEvent('egg', { detail: 'game' }));
         void import('./game404').then((m) => {
           game = m.startGame(gameStage, (score, best) => {
             if (status) status.textContent = `Time. You pulled ${score} ${score === 1 ? 'signal' : 'signals'} out of the noise. Best so far: ${best}.`;

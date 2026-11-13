@@ -5,7 +5,7 @@
  */
 import type Lenis from 'lenis';
 import type { PointField } from '../gl/field';
-import { initCount, mark as markFound, total, EGGS, type Egg } from './count';
+import { initCount, mark as markFound, total, available, EGGS, type Egg } from './count';
 
 export interface EggApi { field: PointField | null; lenis: Lenis | null; reduced: boolean; mark(id: Egg): void }
 
@@ -45,9 +45,14 @@ export function initEggs(base: { field: PointField | null; lenis: Lenis | null; 
   const { field, reduced } = base;
   const api: EggApi = {
     ...base,
-    mark(id) { if (markFound(id)) toast(`eggs found: ${total()}/${EGGS.length}`); },
+    mark(id) { if (markFound(id)) toast(`eggs found: ${total()}/${available()}`); },
   };
-  initCount(() => { if (!reduced) void import('./confetti').then((m) => m.confetti(260)); });
+  // only count what this browser can find: reduced motion keeps the console and the terminal, no scene drops the scene's eggs
+  const can: readonly Egg[] = reduced ? ['console', 'terminal', 'hire', 'force']
+    : field ? EGGS : EGGS.filter((e) => !['away', 'eyes', 'volatile', 'drone'].includes(e));
+  initCount(() => { if (!reduced) void import('./confetti').then((m) => m.confetti(260)); }, can);
+  // the 404 game reports itself from the page code
+  window.addEventListener('egg', (e) => api.mark((e as CustomEvent<Egg>).detail));
   greet(api);
 
   const typing = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
@@ -80,7 +85,7 @@ export function initEggs(base: { field: PointField | null; lenis: Lenis | null; 
       t = window.setTimeout(() => {
         const s = document.getSelection();
         const inMain = !!s && !!s.anchorNode && !!document.getElementById('main')?.contains(s.anchorNode);
-        if (inMain && s!.toString().trim().length >= 24) { said = true; toast('signal selected'); }
+        if (inMain && s!.toString().trim().length >= 24) { said = true; toast('signal selected'); api.mark('select'); }
       }, 600);
     });
   }
@@ -99,6 +104,16 @@ export function initEggs(base: { field: PointField | null; lenis: Lenis | null; 
     const s = field.eggState();
     if (s.form === 'face' && s.gaze > 0.8) { watched += 0.4; if (watched > 2.4) api.mark('eyes'); }
     if (s.form === 'candles' && s.vol > 0.45) api.mark('volatile');
-    if (total() === EGGS.length) window.clearInterval(poll);
+    if (total() === available()) window.clearInterval(poll);
   }, 400);
+  // five clicks on the particle name send a drone out of it
+  let clicks = 0, lastClick = 0;
+  document.addEventListener('click', (e) => {
+    const r = field.nameRect();
+    if (!r || (e.target as Element).closest('a, button, input, dialog, .pile')) { clicks = 0; return; }
+    if (e.clientX < r.x0 || e.clientX > r.x1 || e.clientY < r.y0 || e.clientY > r.y1) { clicks = 0; return; }
+    clicks = e.timeStamp - lastClick < 1500 ? clicks + 1 : 1;
+    lastClick = e.timeStamp;
+    if (clicks >= 5) { clicks = 0; void import('./drone').then((m) => { if (m.flyDrone(api)) api.mark('drone'); }); }
+  });
 }

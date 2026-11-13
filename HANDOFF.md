@@ -147,6 +147,14 @@ in this file; `PLAN.md`, `DESIGN.md` and `REVIEW.md` still describe v1 and have 
 - No-WebGL drawings (`nogl.ts`, fetched only when there is no scene): each `.sec[data-form]` with kind left/right
   gets a still SVG line drawing of its form (the face is the real landmark mesh), on the form's side on wide screens
   and above the copy on phones. Checked with `?nogl` at 1440 and 375 in both themes.
+- Name-click drone (`eggs/drone.ts`, lazy): five clicks on the particle name, or `drone` in the terminal for keyboard
+  users, and the points form a small quadcopter that hovers, flies off right, then the name re-forms. It uses one
+  extra form slot in the field (`showToy` / `hideToy` / `setToy` / `nameRect`, form id 8 in `vert.glsl`). Off with
+  reduced motion. Checked on home at 1440 night only: hover and re-form captured, the fly-off frame was not.
+- Egg counter: 11 eggs now (console, terminal, hire, force, konami, away, eyes, volatile, drone, select, game).
+  `initCount` takes the eggs this browser can reach, so the footer reads n/4 with reduced motion and n/7 without
+  the WebGL scene. The reduced-motion and no-WebGL totals were NOT run in a browser.
+- Dropped by the owner: the idle toy and sound. Neither was ever built, so there is no toggle or stub to remove.
 
 ## Known issues
 - `old-site/` is dead code still in the repo.
@@ -161,11 +169,11 @@ Measured there: 60 fps at 40k points, DPR 1, bloom 4 levels, top level of the hi
 DPR 2, and fill rate while the camera flies between stations. All screenshots so far are SwiftShader at DPR 1.
 
 ## Remaining work, in the approved order
-1. **Item 7, only if budget remains** (done: 404 mini-game, gyroscope parallax, text-selection egg, no-WebGL
-   SVG drawings). Left, each needs a decision from the owner first: idle Pong (a paddle-and-ball idle toy under another
-   name; Pong itself is someone else's game), name-click doodle (what should it draw?), sound toggle (sounds cannot
-   be judged without hearing them). Keep the counter at n/8.
-2. Rewrite the cursor, tilt and glow lines in `DESIGN.md`; update `PLAN.md` and `REVIEW.md`.
+1. Rewrite `DESIGN.md`, `PLAN.md` and `REVIEW.md` so they describe v2 (they still describe v1).
+2. Full egg pass: every egg triggers and exits cleanly, with the keyboard and under reduced motion
+   (`scripts/eggs.mjs` covers the original eight only and still expects n/8).
+3. Final regression: all six pages and `/404.html` at 375 and 1440 in both themes, no console errors.
+
 ## How to run
 ```
 npm run build && npx vite preview --port 4173
