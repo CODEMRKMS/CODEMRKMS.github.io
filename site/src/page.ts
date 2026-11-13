@@ -219,6 +219,31 @@ export function initPage(main: HTMLElement, ctx: Ctx, opts: { first: boolean }):
     cleanups.push(() => { stop?.(); field.setMic(null); });
   }
 
+  // the 404 page's game: fetched on the first press; not offered with reduced motion
+  const play = main.querySelector<HTMLButtonElement>('[data-game]');
+  const gameStage = main.querySelector<HTMLElement>('[data-game-stage]');
+  if (play && gameStage) {
+    if (reduced) main.querySelector('[data-game-row]')?.remove();
+    else {
+      const status = main.querySelector<HTMLElement>('[data-game-status]');
+      let game: { stop(): void } | null = null;
+      play.addEventListener('click', () => {
+        game?.stop();
+        if (status) status.textContent = 'Catch the amber signals. Escape ends the game.';
+        void import('./game404').then((m) => {
+          game = m.startGame(gameStage, (score, best) => {
+            if (status) status.textContent = `Time. You pulled ${score} ${score === 1 ? 'signal' : 'signals'} out of the noise. Best so far: ${best}.`;
+            play.textContent = 'Play again';
+            play.focus({ preventScroll: true });
+          });
+          ScrollTrigger.refresh();
+          gameStage.scrollIntoView({ block: 'nearest' });
+        });
+      });
+      cleanups.push(() => game?.stop());
+    }
+  }
+
   // layout changes after fonts/images settle
   void document.fonts?.ready.then(() => ScrollTrigger.refresh());
   const img = main.querySelectorAll('img');

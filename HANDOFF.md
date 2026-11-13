@@ -132,7 +132,10 @@ in this file; `PLAN.md`, `DESIGN.md` and `REVIEW.md` still describe v1 and have 
 
 **Item 7 (started)**
 - `site/404.html` -> `dist/404.html` (GitHub Pages serves it for unknown paths): a stars hero, "Not found", a link
-  home. No mini-game yet. `vite preview` does not serve it for unknown paths; open `/404.html` to see it.
+  home. `vite preview` does not serve it for unknown paths; open `/404.html` to see it.
+- 404 mini-game "signal from noise" (`game404.ts`, fetched on the Play press): 30 s to catch amber signals among grey
+  noise in a 2D canvas, with mouse, touch or arrow keys / WASD; Escape ends it; best score in localStorage `g404`.
+  Not offered with reduced motion. Not one of the eight counted eggs. Played through at 1440 night and 375 Daylight.
 
 ## Known issues
 - `old-site/` is dead code still in the repo.
@@ -147,7 +150,7 @@ Measured there: 60 fps at 40k points, DPR 1, bloom 4 levels, top level of the hi
 DPR 2, and fill rate while the camera flies between stations. All screenshots so far are SwiftShader at DPR 1.
 
 ## Remaining work, in the approved order
-1. **Item 7, only if budget remains**: 404 mini-game, idle Pong, name-click doodle, sound toggle, gyroscope
+1. **Item 7, only if budget remains** (404 mini-game is done): idle Pong, name-click doodle, sound toggle, gyroscope
    parallax, no-WebGL SVG drawings, text-selection egg. Keep the counter at n/8.
 2. Rewrite the cursor, tilt and glow lines in `DESIGN.md`; update `PLAN.md` and `REVIEW.md`.
 ## How to run
