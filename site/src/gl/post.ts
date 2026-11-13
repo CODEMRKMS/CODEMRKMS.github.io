@@ -118,6 +118,24 @@ export class Post {
   }
   get active() { return this.levels > 0 && !!this.rtScene; }
 
+  /**
+   * Compile everything a frame will need before the first frame, without blocking where the driver allows it.
+   * three.js keys a program on the kind of target it draws into, so each material is compiled against the target
+   * it will really be used with: the scene into the scene target, the blur passes into a mip, the composite onto
+   * the canvas. Compiled against the wrong one, the whole scene shader is built again, synchronously, on first draw.
+   */
+  async warm(r: WebGLRenderer, scene: Scene, camera: Camera) {
+    const rt = this.rtScene, mip = this.mips[0];
+    if (!this.active || !rt || !mip) { r.setRenderTarget(null); await r.compileAsync(scene, camera); return; }
+    r.setRenderTarget(rt);
+    const main = r.compileAsync(scene, camera);
+    const rest: Promise<unknown>[] = [];
+    for (const m of [this.pre, this.down, this.up]) { this.quad.material = m; r.setRenderTarget(mip); rest.push(r.compileAsync(this.scene, this.cam)); }
+    this.quad.material = this.fin; r.setRenderTarget(null);
+    rest.push(r.compileAsync(this.scene, this.cam));
+    await Promise.all([main, ...rest]);
+  }
+
   private pass(r: WebGLRenderer, mat: ShaderMaterial, to: WebGLRenderTarget | null) {
     this.quad.material = mat;
     r.setRenderTarget(to);

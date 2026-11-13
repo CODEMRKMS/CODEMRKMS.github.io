@@ -83,7 +83,12 @@ async function contrast(W, H, theme, path) {
     await page.evaluate((v) => window.scrollTo(0, v), sy);
     await page.waitForTimeout(sy === 0 ? 300 : 1700);
     // what is drawn behind the text: hide the glyphs (their shadows stay, they are part of the design)
-    const hide = await page.addStyleTag({ content: '*{color:transparent !important;caret-color:transparent !important} .hud,.fps{visibility:hidden !important}' });
+    // colours are read first: links fade their colour, and a value read during the fade back would be wrong
+    await page.evaluate(() => {
+      window.__col = new Map();
+      for (const el of document.body.querySelectorAll('*')) window.__col.set(el, getComputedStyle(el).color);
+    });
+    const hide = await page.addStyleTag({ content: '*{color:transparent !important;caret-color:transparent !important;border-color:transparent !important;transition:none !important} .hud,.fps{visibility:hidden !important}' });
     await page.waitForTimeout(60);
     const png = (await page.screenshot()).toString('base64');
     await hide.evaluate((n) => n.remove());
@@ -112,7 +117,8 @@ async function contrast(W, H, theme, path) {
         const er = el.getBoundingClientRect();
         if (er.width < 3 || er.height < 3) continue; // clipped (visually hidden) text
         done.add(el);
-        const m = /rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)/.exec(cs.color);
+        const color = window.__col.get(el) || cs.color;
+        const m = /rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)/.exec(color);
         if (!m) continue;
         const fgL = lum(+m[1], +m[2], +m[3]);
         const fs = parseFloat(cs.fontSize), bold = Number(cs.fontWeight) >= 700;
@@ -130,7 +136,7 @@ async function contrast(W, H, theme, path) {
         if (vals.length < 20) continue;
         vals.sort((a, b) => a - b);
         const worst = vals[0], p05 = vals[Math.floor(vals.length * 0.05)], med = vals[vals.length >> 1];
-        if (p05 < need) out.push({ id: (el.tagName + '.' + el.className).slice(0, 40), text: el.textContent.trim().slice(0, 40), color: cs.color, fs: Math.round(fs), need, worst: +worst.toFixed(2), p05: +p05.toFixed(2), med: +med.toFixed(2) });
+        if (p05 < need) out.push({ id: (el.tagName + '.' + el.className).slice(0, 40), text: el.textContent.trim().slice(0, 40), color, fs: Math.round(fs), need, worst: +worst.toFixed(2), p05: +p05.toFixed(2), med: +med.toFixed(2) });
       }
       return out;
     }, png);

@@ -25,7 +25,7 @@ function partials(): Plugin {
   };
 }
 
-const pages = ['index.html', 'work/proctoring/index.html', 'work/quant-trading/index.html', 'work/voicepay/index.html', 'experience/index.html', 'about/index.html'];
+const pages = ['index.html', 'work/proctoring/index.html', 'work/quant-trading/index.html', 'work/voicepay/index.html', 'experience/index.html', 'about/index.html', '404.html'];
 
 export default defineConfig({
   root,
@@ -39,7 +39,7 @@ export default defineConfig({
     cssCodeSplit: false,
     chunkSizeWarningLimit: 700,
     rollupOptions: {
-      input: Object.fromEntries(pages.map((p) => [p.replace(/\/?index\.html$/, '') || 'index', resolve(root, p)])),
+      input: Object.fromEntries(pages.map((p) => [p.replace(/\/?index\.html$/, '').replace(/\.html$/, '') || 'index', resolve(root, p)])),
     },
   },
   worker: { format: 'es' },

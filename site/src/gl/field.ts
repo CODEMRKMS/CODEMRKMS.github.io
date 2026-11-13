@@ -270,7 +270,7 @@ export class PointField {
     } catch { /* no 2d canvas: bind() falls back to the star field so the page still works */ }
     await rest;
     // compile the shaders off the main thread where the driver allows it, so the first frame does not hitch
-    try { this.bind(FORM.stars, FORM.stars); await this.renderer.compileAsync(this.scene, this.camera); } catch { /* compiled on first draw instead */ }
+    try { this.bind(FORM.stars, FORM.stars); await this.post.warm(this.renderer, this.scene, this.camera); } catch { /* compiled on first draw instead */ }
     this.ready = true;
     this.boundA = this.boundB = -1;
     this.rebuildScenery();

@@ -30,9 +30,50 @@ const WINDOW = 30;
  * offer a software rasteriser refuses a context with failIfMajorPerformanceCaveat, quickly, and gets the plain page.
  * ?noadapt, ?tier= and ?n= skip the caveat check (the capture scripts run on a software renderer).
  */
-export function gpuAvailable(): boolean {
+export async function gpuAvailable(): Promise<boolean> {
   const strict = !/[?&](noadapt|tier=|n=)/.test(location.search);
   if (/[?&]nogl/.test(location.search)) return false; // ?nogl shows the fallback page on any machine
+  // Creating a context can take hundreds of milliseconds on a software rasteriser, so ask from a worker first
+  // and keep the main thread free. 'none' means the worker could not tell (no WebGL in workers): ask here instead.
+  const w = await probeInWorker(strict);
+  if (w === 'yes') return true;
+  if (w === 'no') return false;
+  return probeHere(strict);
+}
+
+const PROBE = `onmessage = (e) => {
+  let r = 'none';
+  try {
+    const get = (o) => { const c = new OffscreenCanvas(2, 2); return c.getContext('webgl2', o) || c.getContext('webgl', o); };
+    const name = (gl) => { const i = gl.getExtension('WEBGL_debug_renderer_info'); return i ? String(gl.getParameter(i.UNMASKED_RENDERER_WEBGL)) : ''; };
+    const done = (gl) => { const x = gl.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); };
+    const soft = /swiftshader|llvmpipe|software|basic render/i;
+    let gl = get({ failIfMajorPerformanceCaveat: e.data });
+    if (gl) { r = e.data && soft.test(name(gl)) ? 'no' : 'yes'; done(gl); }
+    else if (e.data) { gl = get({}); if (gl) { r = 'no'; done(gl); } }
+  } catch (_) {}
+  postMessage(r);
+};`;
+
+function probeInWorker(strict: boolean): Promise<'yes' | 'no' | 'none'> {
+  return new Promise((res) => {
+    if (typeof OffscreenCanvas === 'undefined' || typeof Worker === 'undefined') { res('none'); return; }
+    let url = '', w: Worker | null = null, t = 0;
+    const end = (r: 'yes' | 'no' | 'none') => { clearTimeout(t); w?.terminate(); if (url) URL.revokeObjectURL(url); res(r); };
+    try {
+      url = URL.createObjectURL(new Blob([PROBE], { type: 'text/javascript' }));
+      w = new Worker(url);
+      w.onmessage = (e) => end(e.data === 'yes' || e.data === 'no' ? e.data : 'none');
+      w.onerror = () => end('none');
+      t = window.setTimeout(() => end('none'), 2500);
+      w.postMessage(strict);
+    } catch {
+      end('none');
+    }
+  });
+}
+
+function probeHere(strict: boolean): boolean {
   try {
     const c = document.createElement('canvas');
     const opts = { failIfMajorPerformanceCaveat: strict };

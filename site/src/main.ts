@@ -16,7 +16,7 @@ const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 async function boot() {
   const canvas = document.getElementById('field') as HTMLCanvasElement | null;
-  let hasGL = !!canvas && !!window.WebGLRenderingContext && gpuAvailable();
+  let hasGL = !!canvas && !!window.WebGLRenderingContext && (await gpuAvailable());
   let field: PointField | null = null;
   let mod: typeof import('./gl/field') | null = null;
   if (hasGL) {

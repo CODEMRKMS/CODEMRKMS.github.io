@@ -105,61 +105,51 @@ in this file; `PLAN.md`, `DESIGN.md` and `REVIEW.md` still describe v1 and have 
 - `node scripts/motion.mjs <outDir>` (TIER=high for the post path) captures the theme change, cursor, count-up
   and a page transition.
 
-**Item 6 (in progress, not finished)**
-- Done: browsers with only a software rasteriser (SwiftShader, llvmpipe) now get the no-WebGL page. `gpuAvailable()`
-  in `quality.ts` probes before three.js is downloaded; `?nogl` forces the fallback, `?noadapt` / `?tier=` / `?n=`
-  keep the scene on (the capture scripts use these). Shaders are compiled with `compileAsync` before the first frame.
-  `lookAway()` does nothing under reduced motion.
-- Lighthouse mobile (headless, software GPU): accessibility 100 on home and proctoring. Performance 0.96 with `?nogl`,
-  but 0.70 on the default URL: a ~2 s long task remains during load on a software-only browser (attributed to
-  `_lighthouse-eval.js`, probably the probe's context creation). Not yet diagnosed. Real-GPU score unmeasured.
-- Tried and reverted, unverified: keeping `.hero-name` as visible text until `html.gl-ready` (LCP 3.3 s -> 2.0 s),
-  because it changes the hero layout and was not checked visually.
-- Reduced motion (third session): every home form reviewed at 1440 night and 375 Daylight. All are still, legible
-  poses. Nothing to fix.
-- Keyboard (third session): `node scripts/a11y.mjs <outDir> keys` tabs through all six pages. Every stop has a focus
-  ring, the order follows the page, nothing is covered. Fixed: `scroll-padding` on `html` so a focused element is
-  never under the fixed header or flush with the bottom edge; hash links the router intercepts (skip link, `#work`,
-  `#contact`) now move focus to their target.
-- No-WebGL page (third session): the awards list was invisible at 900 px and wider (the star-label layout is now
-  scoped to `html.gl`); the hero name overflowed a 375 px screen (divisor 5 -> 5.8). Award titles are inline, so the
-  detail line no longer starts with a comma.
-- NOT VERIFIED IN A BROWSER: the three fixes above (scroll-padding, hash focus, no-WebGL awards and hero name) were
-  built but not captured, because the preview server was stopped when the machine ran low on memory.
-- Contrast: `node scripts/a11y.mjs <outDir> contrast` compares each text colour with the pixels really behind it.
-  A first run reported 5 to 16 failing elements per page but was killed before printing which ones. Rerun it
-  (set `PAGES=/` and `SIZES=1440x900` to keep it small), then fix.
-- Still owed: the contrast rerun and fixes, Lighthouse perf 90+ (the ~2 s long task on software-only browsers;
-  idea: run the `gpuAvailable()` probe on an OffscreenCanvas in a worker).
+**Item 6: reduced motion, keyboard, contrast, Lighthouse (done)**
+- Software-only browsers (SwiftShader, llvmpipe) get the no-WebGL page. `gpuAvailable()` in `quality.ts` asks from a
+  worker (OffscreenCanvas) before three.js is downloaded and only falls back to a main-thread probe when a worker
+  cannot tell. `?nogl` forces the fallback; `?noadapt` / `?tier=` / `?n=` keep the scene on (capture scripts use these).
+- Cold start: `Post.warm()` compiles each material against the target it is really drawn into. Before, the scene
+  shader was compiled for the canvas and then again, synchronously, for the bloom target: a 5 s main-thread freeze on
+  a first visit. Measured on this machine's Radeon with an empty shader cache: ready in 5.6 s with no long task (was
+  10.3 s with a 5 s freeze); 0.55 s on repeat loads.
+- While the scene is not drawing yet, the real `<h1>` name fades in after 1.3 s (`html.gl:not(.gl-on) .hero-name`)
+  and gives way to the particles on the first frame. The copy below does not move. Checked visually.
+- Reduced motion: every home form reviewed at 1440 night and 375 Daylight. Still, legible poses. Nothing to fix.
+- Keyboard: `node scripts/a11y.mjs <outDir> keys` tabs through all six pages. Every stop has a focus ring, the order
+  follows the page, nothing is covered. Fixed and verified: `scroll-padding` on `html` (nothing lands under the header
+  or on the bottom edge, forwards or backwards); hash links the router intercepts (skip link, `#work`, `#contact`)
+  move focus to their target.
+- Contrast: `node scripts/a11y.mjs <outDir> contrast` compares each text colour with the pixels really behind it
+  (background, particles, bloom), at every scroll stop. All six pages pass AA at 1440 (tier high) and 375 (tier mid)
+  in both themes. One real failure fixed: the small "Next" label over the previous form now has its own patch of
+  background. Two flags are not failures: an egg toast covering a paragraph, and a button sliding under the header.
+- No-WebGL page: the awards list was invisible at 900 px and wider (the star-label layout is now scoped to
+  `html.gl`); the hero name overflowed a 375 px screen. Award titles are inline, so no detail line starts with a comma.
+- Lighthouse mobile (installed Chrome, headless, real GPU, scene running): home 0.92 performance / 1.00
+  accessibility, proctoring 0.92 / 1.00, `?nogl` 0.98 / 1.00. The margin on performance is thin: TBT is about 300 ms,
+  mostly one task in `main` around the first frame.
+
+**Item 7 (started)**
+- `site/404.html` -> `dist/404.html` (GitHub Pages serves it for unknown paths): a stars hero, "Not found", a link
+  home. No mini-game yet. `vite preview` does not serve it for unknown paths; open `/404.html` to see it.
 
 ## Known issues
-- No 404 page yet. `old-site/` is dead code still in the repo.
-- A `vite preview` process from this session may still be listening on port 4173.
+- `old-site/` is dead code still in the repo.
+- A first visit still waits about 5 s for the driver to compile the point shader (asynchronously; the page is usable
+  and shows the text name meanwhile). Shortening it means simplifying `vert.glsl`.
+- Run the audits one page at a time (`PAGES=/ SIZES=1440x900`): a full pass with the preview server was killed once
+  when the machine ran low on memory.
 
-## Only tested on a software renderer
-Every capture and timing here came from headless Chromium on SwiftShader. Nothing has been measured on a real GPU:
-- frame rate at 40k points on a laptop and 12k on an Android phone
-- fill rate while the camera flies through the particle stream between stations
-- the look of additive blending at real DPR (captures were DPR 1)
-
-Checked: `npm run build` passes; home face and candles sections at 1440 and 375, night and Daylight, no console
-errors. Not checked for these commits: 768 and ultrawide, the case-study, experience and about pages in Daylight,
-reduced motion, keyboard navigation, Lighthouse.
+## Real GPU
+Headless Chromium started with `--ignore-gpu-blocklist --enable-gpu` uses this machine's AMD Radeon (integrated).
+Measured there: 60 fps at 40k points, DPR 1, bloom 4 levels, top level of the high tier. Still unmeasured: a phone,
+DPR 2, and fill rate while the camera flies between stations. All screenshots so far are SwiftShader at DPR 1.
 
 ## Remaining work, in the approved order
-1. **1d**: `gl/post.ts` (bloom, chromatic aberration on fast scroll, film grain), opaque canvas with its own sky,
-   built together with `gl/quality.ts` (GPU tiers, DPR cap 2, quality that can step back up) and the `?fps`
-   overlay, so bloom never ships without a low tier.
-2. **Cheap eggs**: console greeting, backtick terminal (including the `git push --force` bonus), Konami pile,
-   "caught you looking away" on tab return, footer counter "eggs found: n/8". Eye-follow and scroll-driven
-   volatility already work and only need registering with the counter.
-3. **Step 2**, in this order: Daylight sun transition, router transition polish, pointer repel and swirl,
-   split-text and count-up, magnetic and tilt, custom cursor.
-4. **Reduced-motion and keyboard/contrast checks**, including the phone readability issue above.
-5. **Only if budget remains**: 404 game, Pong idle egg, name-click doodle, sound, gyroscope, no-WebGL SVG
-   drawings, the text-selection egg. Keep the counter at n/8 and adjust which eggs count if some are deferred.
-6. Rewrite the cursor, tilt and glow lines in `DESIGN.md`; update `PLAN.md` and `REVIEW.md`.
-
+1. **Item 7, only if budget remains**: 404 mini-game, idle Pong, name-click doodle, sound toggle, gyroscope
+   parallax, no-WebGL SVG drawings, text-selection egg. Keep the counter at n/8.
+2. Rewrite the cursor, tilt and glow lines in `DESIGN.md`; update `PLAN.md` and `REVIEW.md`.
 ## How to run
 ```
 npm run build && npx vite preview --port 4173

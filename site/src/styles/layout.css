@@ -32,7 +32,11 @@
 }
 .hero > * { grid-column: 1 / -1; }
 .hero-name { font-size: min(var(--t-6), calc((100vw - 2 * var(--pad)) / 5.8)); margin-bottom: 0.2em; }
-html.gl .hero-name { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); }
+/* once the scene is drawing, the particles are the name. Until then (a first visit compiles shaders, which can take
+   seconds) the real heading steps in after a moment, so the hero is never left without a name */
+html.gl.gl-on .hero-name { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); }
+html.gl:not(.gl-on) .hero-name { opacity: 0; animation: name-wait 0.5s 1.3s forwards; }
+@keyframes name-wait { to { opacity: 1; } }
 .hero-lede { grid-column: 1 / span 7; font-size: var(--t-2); line-height: 1.25; max-width: 28ch; }
 .hero-sub { grid-column: 9 / span 4; align-self: end; color: var(--fg-2); max-width: 36ch; font-size: 0.97rem; }
 .hero .lede, .hero .meta, .hero .display, .hero .speak-row { text-shadow: 0 1px 14px var(--bg), 0 0 3px var(--bg); }
@@ -97,6 +101,8 @@ html.gl .hero-name { position: absolute; width: 1px; height: 1px; margin: -1px; 
 /* ---------- next project ---------- */
 .next { min-height: 78svh; display: flex; flex-direction: column; justify-content: flex-end; gap: 14px; padding: var(--space) var(--pad) clamp(56px, 10vh, 120px); }
 .next-link { --size: var(--t-5); align-self: flex-start; border-bottom: 3px solid transparent; transition: color 0.25s, border-color 0.25s; text-shadow: 0 1px 14px var(--bg); }
+/* the small label can sit over the previous form: it gets its own patch of background (AA over particles) */
+.next .meta { align-self: flex-start; background: var(--bg); padding: 2px 8px; margin-left: -8px; border-radius: 4px; }
 .next-link:hover, .next-link:focus-visible { color: var(--accent); border-bottom-color: var(--accent); }
 
 /* ---------- footer ---------- */
