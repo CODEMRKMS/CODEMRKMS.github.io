@@ -103,6 +103,10 @@ export class PointField {
   private sizeW = 0;
   private sizeH = 0;
   private ptrTarget = { x: 0, y: 0, a: 0 };
+  private tilt = { x: 0, y: 0 };
+  private tiltT = { x: 0, y: 0 };
+  /** device tilt, -1..1 on each axis (gyro.ts) */
+  setTilt(x: number, y: number) { this.tiltT.x = x; this.tiltT.y = y; }
   private ptr = { x: 0, y: 0, a: 0 };
   private lastMove = 0;
   private dollyZ = { z: 0, x: 0, roll: 0 };
@@ -584,7 +588,10 @@ export class PointField {
     this.ptr.x += (this.ptrTarget.x - this.ptr.x) * k;
     this.ptr.y += (this.ptrTarget.y - this.ptr.y) * k;
     const par = this.reduced ? 0 : 1;
-    this.camera.position.set(this.camPos.x + this.ptr.x * 0.28 * par + this.dollyZ.x, this.camPos.y + this.ptr.y * 0.16 * par, this.camPos.z + this.dollyZ.z);
+    // phones: tilting the device moves the camera the way the pointer does on a desk
+    const kt = 1 - Math.pow(0.03, dt);
+    this.tilt.x += (this.tiltT.x - this.tilt.x) * kt; this.tilt.y += (this.tiltT.y - this.tilt.y) * kt;
+    this.camera.position.set(this.camPos.x + (this.ptr.x * 0.28 + this.tilt.x * 0.55) * par + this.dollyZ.x, this.camPos.y + (this.ptr.y * 0.16 + this.tilt.y * 0.34) * par, this.camPos.z + this.dollyZ.z);
     roll += this.dollyZ.roll;
     this.camera.up.set(Math.sin(roll), Math.cos(roll), 0);
     this.camera.lookAt(this.look);

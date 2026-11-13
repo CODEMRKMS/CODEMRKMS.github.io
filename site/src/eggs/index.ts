@@ -71,6 +71,20 @@ export function initEggs(base: { field: PointField | null; lenis: Lenis | null; 
     }
   });
 
+  // selecting a real stretch of copy gets a nod, once per visit (not one of the counted eight)
+  if (!reduced) {
+    let t = 0, said = false;
+    document.addEventListener('selectionchange', () => {
+      if (said) return;
+      clearTimeout(t);
+      t = window.setTimeout(() => {
+        const s = document.getSelection();
+        const inMain = !!s && !!s.anchorNode && !!document.getElementById('main')?.contains(s.anchorNode);
+        if (inMain && s!.toString().trim().length >= 24) { said = true; toast('signal selected'); }
+      }, 600);
+    });
+  }
+
   if (!field || reduced) return;
   // coming back to the tab while the proctor is watching
   document.addEventListener('visibilitychange', () => {

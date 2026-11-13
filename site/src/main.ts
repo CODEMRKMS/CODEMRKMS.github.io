@@ -88,6 +88,7 @@ async function boot() {
     void import('./cursor').then((m) => m.initCursor());
     void import('./motion').then((m) => m.hover(document.querySelector<HTMLElement>('.site-header')!));
   }
+  if (field && !reduced && window.matchMedia('(pointer: coarse)').matches) void import('./gyro').then((m) => m.initGyro(field!));
   // easter eggs are not needed to use the site: fetch them when the browser has nothing better to do
   const idle = window.requestIdleCallback ? (f: () => void) => window.requestIdleCallback(f, { timeout: 4000 }) : (f: () => void) => window.setTimeout(f, 1500);
   idle(() => void import('./eggs').then((m) => m.initEggs({ field, lenis, reduced })));
