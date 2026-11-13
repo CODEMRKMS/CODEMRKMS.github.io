@@ -1,4 +1,3 @@
-import './styles/index.css';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
@@ -14,6 +13,9 @@ gsap.registerPlugin(ScrollTrigger);
 const root = document.documentElement;
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+/** end the current task: evaluating three.js, building the scene and wiring the page are each long enough alone */
+const breathe = () => new Promise<void>((r) => setTimeout(r, 0));
+
 async function boot() {
   const canvas = document.getElementById('field') as HTMLCanvasElement | null;
   let hasGL = !!canvas && !!window.WebGLRenderingContext && (await gpuAvailable());
@@ -22,7 +24,8 @@ async function boot() {
   if (hasGL) {
     // three.js lives in its own chunk, fetched only now, after the page has painted
     mod = await import('./gl/field');
-    hasGL = mod.webglAvailable();
+    // the probe has already had a context; the constructor below is the real test and falls back if it throws
+    await breathe();
   }
 
   if (!hasGL) {
@@ -37,6 +40,8 @@ async function boot() {
       root.classList.add('no-gl');
     }
   }
+
+  if (field) await breathe();
 
   // smooth scroll shares the GSAP ticker; native scrolling when motion is reduced
   let lenis: Lenis | null = null;

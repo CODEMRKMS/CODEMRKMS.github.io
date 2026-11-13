@@ -49,8 +49,13 @@ export function initPage(main: HTMLElement, ctx: Ctx, opts: { first: boolean }):
   const splits: { el: HTMLElement; st: SplitText; revealed: boolean }[] = [];
 
   /* ----- below-the-fold headings assemble by masked line (everything else stays still) ----- */
+  // Splitting text measures and rebuilds it, which adds up over a page. It is done a few elements per task, nearest
+  // first; anything the reader reaches before its turn simply appears without the reveal.
   const prepareReveals = () => {
-    main.querySelectorAll<HTMLElement>('[data-split]').forEach((el) => {
+    const queue = Array.from(main.querySelectorAll<HTMLElement>('[data-split]'));
+    let alive = true;
+    cleanups.push(() => { alive = false; });
+    const one = (el: HTMLElement) => {
       if (inView(el)) return; // first-screen text is handled by the intro / the router
       const st = isHeading(el) ? splitHeading(el) : splitLines(el);
       if (!st.lines.length) { st.revert(); return; }
@@ -67,7 +72,14 @@ export function initPage(main: HTMLElement, ctx: Ctx, opts: { first: boolean }):
           },
         }),
       );
-    });
+    };
+    const step = () => {
+      if (!alive) return;
+      const t0 = performance.now();
+      while (queue.length && performance.now() - t0 < 6) one(queue.shift()!);
+      if (queue.length) window.setTimeout(step, 0);
+    };
+    step();
   };
   if (!reduced) {
     prepareReveals();

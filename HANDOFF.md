@@ -126,9 +126,12 @@ in this file; `PLAN.md`, `DESIGN.md` and `REVIEW.md` still describe v1 and have 
   background. Two flags are not failures: an egg toast covering a paragraph, and a button sliding under the header.
 - No-WebGL page: the awards list was invisible at 900 px and wider (the star-label layout is now scoped to
   `html.gl`); the hero name overflowed a 375 px screen. Award titles are inline, so no detail line starts with a comma.
-- Lighthouse mobile (installed Chrome, headless, real GPU, scene running): home 0.92 performance / 1.00
-  accessibility, proctoring 0.92 / 1.00, `?nogl` 0.98 / 1.00. The margin on performance is thin: TBT is about 300 ms,
-  mostly one task in `main` around the first frame.
+- Lighthouse mobile (installed Chrome, headless, real GPU, scene running), after the last commit: home 0.93 / 0.92 /
+  0.92 / 0.91 performance over four runs, proctoring 0.92, about 0.94, `?nogl` 0.97; accessibility 1.00 on all.
+  Before that commit home flipped between 0.92 and 0.84 from run to run, depending on whether the app script
+  happened to run before the first paint. Now `boot.ts` is the entry and imports `main.ts` after the first frame
+  (`preloadApp()` in `vite.config.ts` adds modulepreload links so the download is not delayed), scene start-up is
+  split into separate tasks, and `prepareReveals` in `page.ts` splits text a few elements per task. TBT about 250 ms.
 
 **Item 7 (started)**
 - `site/404.html` -> `dist/404.html` (GitHub Pages serves it for unknown paths): a stars hero, "Not found", a link
